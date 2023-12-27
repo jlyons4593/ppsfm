@@ -1,6 +1,8 @@
 # Prerequisites
 *.d
-
+.DS_Store
+.cache/
+.gitattributes
 # Compiled Object files
 *.slo
 *.lo
@@ -30,3 +32,50 @@
 *.exe
 *.out
 *.app
+
+# Ignore build folder
+build/
+
+# Ignore dependencies folder
+dependencies/
+
+# C++ specific
+*.o
+*.obj
+*.exe
+*.dll
+*.so
+*.dylib
+*.out
+
+# Ignore Debug and Release directories
+Debug/
+Release/
+
+# Ignore binaries, temporary files, etc.
+*.sdf
+*.suo
+*.user
+*.aps
+*.pch
+*.vspscc
+*_i.c
+*_p.c
+*.ncb
+*.sbr
+*.ilk
+*.map
+*.exp
+*.gch
+*.opensdf
+*.opt
+*.ipch
+*.pdb
+*.idb
+*.res
+*.tlog
+*.lastbuildstate
+
+# Ignore editor and IDE specific files
+.vs/
+.vscode
