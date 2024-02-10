@@ -4,6 +4,8 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 project(app)
 
+set(CMAKE_OSX_SYSROOT "/Library/Developer/CommandLineTools/SDKs/MacOSX14.sdk")
+
 set(Matlab_ROOT_DIR "/Applications/MATLAB_R2023b.app")
 # Find MATLAB
 find_package(Matlab REQUIRED MX_LIBRARY MAT_LIBRARY ENG_LIBRARY)
@@ -13,10 +15,6 @@ find_package(Eigen3 REQUIRED)
 include_directories(${Matlab_INCLUDE_DIRS})
 include_directories(${EIGEN3_INCLUDE_DIR})
 
-# Source files
-set(SOURCE_FILES
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp
-)
 
 file(GLOB OBJECT_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/*.h)
 
