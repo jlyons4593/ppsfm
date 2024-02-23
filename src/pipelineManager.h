@@ -1,5 +1,9 @@
 #include <Eigen/Dense>
+#include <iostream>
+#include <memory>
+#include <vector>
 #include <Eigen/Sparse>
+#include "dataCleaning.h"
 #include "dataStructures.hpp"
     
 // This class takes in measurements, img_sizes, centers, options
@@ -33,17 +37,23 @@ private:
      */
     // Variable for storing alot of the output data like visibility matrix, data matrix, normalised measurements, normalisation transformation for each camera stacked vertically, un normalised measurements, etc
     // DataStructures::SfMData data;
-    Eigen::MatrixXi visible; // FxN binary visibility matrix
-    Eigen::MatrixXd data; // Data matrix for computations
-    Eigen::MatrixXd normalised_measurements; // 3FxN normalized measurements
-    Eigen::MatrixXd normalisations_transformations; // 3Fx3 normalization transformations
-    Eigen::MatrixXd image_measurements; // 3FxN unnormalized measurements
-    Eigen::MatrixXd pseudo_inverse_measurements; // Fx3N matrix for projective depth elimination
-    Eigen::RowVectorXi ignored_points; // 1xN binary mask for ignored points
+    // stages vector to store the pointers to the stage as well as their data
+
+    // old impl
+    // Eigen::MatrixXi visible; // FxN binary visibility matrix
+    // Eigen::MatrixXd data; // Data matrix for computations
+    // Eigen::MatrixXd normalised_measurements; // 3FxN normalized measurements
+    // Eigen::MatrixXd normalisations_transformations; // 3Fx3 normalization transformations
+    // Eigen::MatrixXd image_measurements; // 3FxN unnormalized measurements
+    // Eigen::MatrixXd pseudo_inverse_measurements; // Fx3N matrix for projective depth elimination
+    // Eigen::RowVectorXi ignored_points; // 1xN binary mask for ignored points
     // Variable for storing the series of models. 
     // DataStructures::SfMModelSeries models;
     // Variable for storing the measurements taken in to the pipeline.
+
+
     Eigen::SparseMatrix<double> measurements;
+        
     // EigenMatrixx for storing the image sizes
     Eigen::MatrixXd image_size;
 
@@ -51,17 +61,21 @@ private:
 
     // This function sets the many of the data variables that come from the measurements passed in
     void cleanData();
+     
     // This function sets the view_pairs and affinity measurements by making a call to our measurements and affinity Generator
     void pairsAffinity();
     
 public:
+
     // Constructor for PipelineManager
     PipelineManager(DataStructures::InputMatrices input);
 
+    void runPipeline() {
+        cleanData();    
+    }
 
     // Destructor
     ~PipelineManager();
     // Function to trigger the pipeline
-    void runPipeline();
 
 };

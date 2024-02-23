@@ -7,6 +7,7 @@ project(app)
 set(CMAKE_OSX_SYSROOT "/Library/Developer/CommandLineTools/SDKs/MacOSX14.sdk")
 
 set(Matlab_ROOT_DIR "/Applications/MATLAB_R2023b.app")
+
 # Find MATLAB
 find_package(Matlab REQUIRED MX_LIBRARY MAT_LIBRARY ENG_LIBRARY)
 

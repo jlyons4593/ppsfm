@@ -1,5 +1,6 @@
 #include <iostream>
 #include "pipelineManager.h"
+#include "dataCleaning.h"
 
 PipelineManager::PipelineManager(DataStructures::InputMatrices input) 
 {
@@ -11,14 +12,16 @@ PipelineManager::PipelineManager(DataStructures::InputMatrices input)
 }
 PipelineManager::~PipelineManager(){}
 //
-void PipelineManager::runPipeline(){
-    std::cout<<"running pipeline"<<std::endl;
+// void PipelineManager::runPipeline(){
+    // std::cout<<"running pipeline"<<std::endl;
     // Prep Data
     //
     //
     // Calc pair affinity
-}
+// }
 
 void PipelineManager::cleanData(){
+    DataCleaningStage* dataCleaner = new DataCleaningStage;
+    dataCleaner->process(measurements);
 
 }

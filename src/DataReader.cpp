@@ -74,6 +74,5 @@ InputMatrices matread(const char *file)
     // Cleanup
     matClose(pmat);
 
-    std::cout<< matrices;
     return matrices;
 }

@@ -17,6 +17,8 @@ namespace DataStructures {
 	    Eigen::MatrixXd img_meas; // Unnormalized homogeneous measurements, size 3FxN
 	    Eigen::MatrixXd pinv_meas; // Pseudo-inverse or cross-product matrix, size Fx3N
 	    Eigen::RowVectorXd ignored_pts; // Binary mask for ignored points, size 1xN
+	    
+	    SfMData() = default;
 
 	    // Constructor to initialize the matrices with sizes if known at creation time
 	    SfMData(int F, int N) : visible(Eigen::MatrixXi::Zero(F, N)), 
