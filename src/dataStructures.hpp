@@ -10,24 +10,25 @@ namespace DataStructures {
 	};
 
 	struct SfMData {
-	    Eigen::MatrixXi visible; // Assuming FxN size, binary visibility matrix
-	    Eigen::MatrixXd data; // Data matrix for computations
-	    Eigen::MatrixXd norm_meas; // Normalized homogeneous image projection coordinates, size 3FxN
+	    Eigen::MatrixXd visible; // Assuming FxN size, binary visibility matrix
+	    Eigen::MatrixXd cost_function_data; // Data matrix for computations
+	    Eigen::MatrixXd normalised_measurements; // Normalized homogeneous image projection coordinates, size 3FxN
 	    Eigen::MatrixXd normalisations; // Normalisation transformations, size 3Fx3
-	    Eigen::MatrixXd img_meas; // Unnormalized homogeneous measurements, size 3FxN
-	    Eigen::MatrixXd pinv_meas; // Pseudo-inverse or cross-product matrix, size Fx3N
-	    Eigen::RowVectorXd ignored_pts; // Binary mask for ignored points, size 1xN
+	    Eigen::MatrixXd image_measurements; // Unnormalized homogeneous measurements, size 3FxN
+	    Eigen::MatrixXd pseudo_inverse_measurements; // Pseudo-inverse or cross-product matrix, size Fx3N
+	    Eigen::Array<bool, 1, Eigen::Dynamic> removed_points;  // Binary mask for ignored points, size 1xN
+	    
 	    
 	    SfMData() = default;
 
 	    // Constructor to initialize the matrices with sizes if known at creation time
-	    SfMData(int F, int N) : visible(Eigen::MatrixXi::Zero(F, N)), 
-				    data(Eigen::MatrixXd::Zero(F, N)), // Modify accordingly if different dimensions are required
-				    norm_meas(Eigen::MatrixXd::Zero(3*F, N)), 
+	    SfMData(int F, int N) : visible(Eigen::MatrixXd::Zero(F, N)), 
+				    cost_function_data(Eigen::MatrixXd::Zero(F, N)), // Modify accordingly if different dimensions are required
+				    normalised_measurements(Eigen::MatrixXd::Zero(3*F, N)), 
 				    normalisations(Eigen::MatrixXd::Zero(3*F, 3)), 
-				    img_meas(Eigen::MatrixXd::Zero(3*F, N)), 
-				    pinv_meas(Eigen::MatrixXd::Zero(F, 3*N)), 
-				    ignored_pts(Eigen::RowVectorXd::Zero(N)) {}
+				    image_measurements(Eigen::MatrixXd::Zero(3*F, N)), 
+				    pseudo_inverse_measurements(Eigen::MatrixXd::Zero(F, 3*N)), 
+				    removed_points(Eigen::Array<bool,1,Eigen::Dynamic>()) {}
 	};
 
 	struct Model {

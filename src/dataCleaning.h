@@ -11,10 +11,17 @@
 class DataCleaningStage {
 private:
   DataStructures::SfMData data;
-  Eigen::MatrixXd image_measurements;
-  Eigen::MatrixXd normalised_measurements;
-  Eigen::MatrixXd normalisations;
   Eigen::MatrixXd dense_measurements;
+  int number_of_views;
+  int number_of_points;
+  int number_of_visible;
+  Eigen::VectorXd data_i;
+  Eigen::VectorXd data_j;
+  Eigen::VectorXd data_v;
+  Eigen::VectorXd pinv_meas_i;
+  Eigen::VectorXd pinv_meas_j;
+  Eigen::VectorXd pinv_meas_v;
+
   Logger logger;
 
   void printColsRows(Eigen::MatrixXd matrix, std::string matrix_name) {
@@ -22,28 +29,41 @@ private:
     std::cout << matrix_name + " rows: " << matrix.rows() << std::endl
               << matrix_name + " columns: " << matrix.cols() << std::endl;
   }
+  void sizeDataPinvVectors(){
+
+    this->data_i.resize(6*number_of_visible);
+    this->data_j.resize(6*number_of_visible);
+    this->data_v.resize(6*number_of_visible);
+    this->pinv_meas_i.resize(3*number_of_visible);
+    this->pinv_meas_j.resize(3*number_of_visible);
+    this->pinv_meas_v.resize(3*number_of_visible);
+
+    this->data_i.setZero();
+    this->data_j.setZero();
+    this->data_v.setZero();
+    this->pinv_meas_i.setZero();
+    this->pinv_meas_j.setZero();
+    this->pinv_meas_v.setZero();
+  }
 
 public:
-  DataStructures::SfMData getData();
-  // THIS FUNCTION NOW LOOKS CORRECT
-  void process(Eigen::SparseMatrix<double> &measurements) {
-    logger.logSection("Prepare Data");
-    dense_measurements = Eigen::MatrixXd(measurements);
+   void handleVisibility(){
+
 
     logger.logSubsection("Creating visibility matrix");
-    Eigen::MatrixXd visible = filterVisibleMatrix(dense_measurements);
-    Eigen::RowVectorXi visibilitySum = visible.cast<int>().colwise().sum();
-    Eigen::Array<bool, 1, Eigen::Dynamic> rm_pts =
+    data.visible = filterVisibleMatrix(dense_measurements);
+    Eigen::RowVectorXi visibilitySum = data.visible.cast<int>().colwise().sum();
+    data.removed_points=
         visibilitySum.array() <
         Options::ELIGIBILITY_POINTS[Options::MAX_LEVEL_POINTS];
 
-    logger.logSubsection("Removing Less Visible Points");
-    std::vector<bool> pointsToRemove(visible.cols(), false);
-    for (int i = 0; i < rm_pts.size(); ++i) {
-      pointsToRemove[i] = rm_pts(i);
+    logger.logSubsection("Removing Less data.visible Points");
+    std::vector<bool> pointsToRemove(data.visible.cols(), false);
+    for (int i = 0; i < data.removed_points.size(); ++i) {
+      pointsToRemove[i] = data.removed_points(i);
     }
     Eigen::Array<bool, 1, Eigen::Dynamic> keep_pts =
-        rm_pts.unaryExpr([](bool v) { return !v; });
+        data.removed_points.unaryExpr([](bool v) { return !v; });
 
     // Create a list of indices to keep
     std::vector<int> indices_to_keep;
@@ -53,96 +73,98 @@ public:
       }
     }
 
-    // Assuming 'visible' and 'orig_meas' are Eigen matrices
-    Eigen::MatrixXd filtered_visible(visible.rows(), indices_to_keep.size());
+    // Assuming 'data.visible' and 'orig_meas' are Eigen matrices
+    Eigen::MatrixXd filtered_visible(data.visible.rows(), indices_to_keep.size());
     Eigen::MatrixXd filtered_orig_meas(dense_measurements.rows(),
                                        indices_to_keep.size());
 
     // Step 2: Filter columns
     for (size_t i = 0; i < indices_to_keep.size(); ++i) {
-      filtered_visible.col(i) = visible.col(indices_to_keep[i]);
+      filtered_visible.col(i) = data.visible.col(indices_to_keep[i]);
       filtered_orig_meas.col(i) = dense_measurements.col(indices_to_keep[i]);
     }
-    visible = filtered_visible;
+    data.visible = filtered_visible;
     dense_measurements = filtered_orig_meas;
 
-    int number_of_visible = (visible.array() != 0).count();
-    int number_of_views = visible.rows();
-    int number_of_points = visible.cols();
+    number_of_visible = (data.visible.array() != 0).count();
+    number_of_views = data.visible.rows();
+    number_of_points = data.visible.cols();
+  }
+
+  DataStructures::SfMData getData(){
+    return data;
+  }
+  // THIS FUNCTION NOW LOOKS CORRECT
+  void process(Eigen::SparseMatrix<double> &measurements) {
+    logger.logSection("Prepare Data");
+    dense_measurements = Eigen::MatrixXd(measurements);
+
+    logger.logSubsection("Creating visibility matrix");
+
+    handleVisibility();
     // ALL VARS CORRECT
 
-    image_measurements =
+    data.image_measurements =
         Eigen::MatrixXd::Zero(3 * number_of_views, number_of_points);
     // printColsRows(image_measurements, "Image Measurements");
-    normalised_measurements =
+    data.normalised_measurements =
         Eigen::MatrixXd::Zero(3 * number_of_views, number_of_points);
     // printColsRows(normalised_measurements, "Normalised Measurements");
-    normalisations = Eigen::MatrixXd::Constant(
+    data.normalisations = Eigen::MatrixXd::Constant(
         3 * number_of_views, 3, std::numeric_limits<double>::quiet_NaN());
     // printColsRows(normalisations, "Normalisations");
     for (int j = 0; j < number_of_views; ++j) {
-      Eigen::RowVectorXd visible_points = visible.row(j);
+      Eigen::RowVectorXd visible_points = data.visible.row(j);
 
-      // Assuming 'visible' is a binary matrix indicating visibility
+      // Assuming 'data.visible' is a binary matrix indicating visibility
       std::vector<int> vis_pts_indices; // This will need to be filled with
-                                        // indices of visible points for view j
+                                        // indices of data.visible points for view j
       // Iterate over 'visible_points' to find and store indices of visible
       // points
       for (int i = 0; i < visible_points.size(); ++i) {
-        if (visible_points(i) > 0) { // Assuming a point is visible if its
+        if (visible_points(i) > 0) { // Assuming a point is data.visible if its
                                      // corresponding value is > 0
           vis_pts_indices.push_back(i);
         }
       }
 
       for (int idx : vis_pts_indices) {
-        image_measurements.block(j * 3, idx, 2, 1) =
+        data.image_measurements.block(j * 3, idx, 2, 1) =
             dense_measurements.block((j) * 2, idx, 2, 1);
       }
       for (int idx : vis_pts_indices) {
-        image_measurements((j * 3) + 2, idx) = 1; // Eigen is 0-based
+        data.image_measurements((j * 3) + 2, idx) = 1; // Eigen is 0-based
       }
 
       Eigen::MatrixXd block(3, vis_pts_indices.size());
       for (size_t colIndex = 0; colIndex < vis_pts_indices.size(); ++colIndex) {
         int visCol = vis_pts_indices[colIndex];
-        block.col(colIndex) = image_measurements.block(j * 3, visCol, 3, 1);
+        block.col(colIndex) = data.image_measurements.block(j * 3, visCol, 3, 1);
       }
 
       // Call normtrans
       auto [transform, transformed_measurements] = normtrans(block);
-      normalisations.block(j * 3, 0, 3, normalisations.cols()) = transform;
-      // TRANSFORM CORRECT FOR FIRST ITERATION
+
+      data.normalisations.block(j * 3, 0, 3, data.normalisations.cols()) = transform;
       // Update normalisations
       // EXPLAIN WHAT THIS IS DOING
       for (int i = 0; i < vis_pts_indices.size(); ++i) {
         int point_col = vis_pts_indices[i]; // The column index in norm_meas for
-                                            // the visible point
+                                            // the data.visible point
 
-        normalised_measurements.block(j * 3, point_col, 3, 1) =
+        data.normalised_measurements.block(j * 3, point_col, 3, 1) =
             transformed_measurements.col(i);
       }
     }
 
-    Eigen::VectorXd data_i(6 * number_of_visible);
-    Eigen::VectorXd data_j(6 * number_of_visible);
-    Eigen::VectorXd data_v(6 * number_of_visible);
-    Eigen::VectorXd pinv_meas_i(3 * number_of_visible);
-    Eigen::VectorXd pinv_meas_j(3 * number_of_visible);
-    Eigen::VectorXd pinv_meas_v(3 * number_of_visible);
 
-    data_i.setZero();
-    data_j.setZero();
-    data_v.setZero();
-    pinv_meas_i.setZero();
-    pinv_meas_j.setZero();
-    pinv_meas_v.setZero();
+    sizeDataPinvVectors();
 
     std::vector<int> view_idx, point_idx;
 
-    for (int i = 0; i < visible.rows(); ++i) {
-      for (int j = 0; j < visible.cols(); ++j) {
-        if (visible(i, j) > 0) {
+    for (int i = 0; i < this->data.visible.rows(); ++i) {
+      for (int j = 0; j < this->data.visible.cols(); ++j) {
+        if (this->data.visible(i, j) > 0) {
           view_idx.push_back(i);
           point_idx.push_back(j);
         }
@@ -160,9 +182,9 @@ public:
           point_idx[k]; // No adjustment needed if `point_idx` is 0-based
       // Ensure indices are within bounds
       if (startRow >= 0 && colIdx >= 0 &&
-          startRow + 2 < normalised_measurements.rows() &&
-          colIdx < normalised_measurements.cols()) {
-        meas = normalised_measurements.block(startRow, colIdx, 3, 1);
+          startRow + 2 < this->data.normalised_measurements.rows() &&
+          colIdx < this->data.normalised_measurements.cols()) {
+        meas = this->data.normalised_measurements.block(startRow, colIdx, 3, 1);
         // Optionally, use 'meas' here, e.g., print or process it
       }
 
@@ -224,28 +246,28 @@ public:
     int cols = static_cast<int>(data_j.maxCoeff()) + 1;
 
     // Initialize the data matrix with zeros
-    Eigen::MatrixXd data = Eigen::MatrixXd::Zero(rows, cols);
+     data.cost_function_data = Eigen::MatrixXd::Zero(rows, cols);
 
-    for(int k = 0; k < data_i.size(); ++k) {
-        int row = static_cast<int>(data_i(k));
-        int col = static_cast<int>(data_j(k));
-        data(row, col) = data_v(k);
-    }
-
-    printColsRows(data, "Data");
-
-    rows = static_cast<int>(pinv_meas_i.maxCoeff()) + 1;
-    cols = static_cast<int>(pinv_meas_j.maxCoeff()) + 1;
-
-    // Initialize the data matrix with zeros
-    Eigen::MatrixXd pinv_meas = Eigen::MatrixXd::Zero(rows, cols);
-
-    for(int k = 0; k < pinv_meas_i.size(); ++k) {
-        int row = static_cast<int>(pinv_meas_i(k));
-        int col = static_cast<int>(pinv_meas_j(k));
-        pinv_meas(row, col) = pinv_meas_v(k);
-    }
-    printColsRows(pinv_meas,"pinv_meas");
+     for(int k = 0; k < data_i.size(); ++k) {
+         int row = static_cast<int>(data_i(k));
+         int col = static_cast<int>(data_j(k));
+         data.cost_function_data(row, col) = data_v(k);
+     }
+//
+     printColsRows(data.cost_function_data, "Cost Function Data");
+//
+     rows = static_cast<int>(pinv_meas_i.maxCoeff()) + 1;
+     cols = static_cast<int>(pinv_meas_j.maxCoeff()) + 1;
+    
+     // Initialize the data matrix with zeros
+     data.pseudo_inverse_measurements = Eigen::MatrixXd::Zero(rows, cols);
+    
+     for(int k = 0; k < pinv_meas_i.size(); ++k) {
+         int row = static_cast<int>(pinv_meas_i(k));
+         int col = static_cast<int>(pinv_meas_j(k));
+         data.pseudo_inverse_measurements(row, col) = pinv_meas_v(k);
+     }
+    printColsRows(data.pseudo_inverse_measurements,"pinv_meas");
   }
 
   Eigen::MatrixXd filterVisibleMatrix(Eigen::MatrixXd &dense_measurements) {
@@ -253,6 +275,7 @@ public:
     // Step 1: creating a matrix of same size as dense measurements that is a
     // binary visibility matrix
     Eigen::MatrixXd visible = (dense_measurements.array() != 0).cast<double>();
+
     // Step 2: Filter rows to ensure visibility in both subsequent rows
     Eigen::MatrixXd filtered_visible(visible.rows() / 2, visible.cols());
     for (int i = 0; i < visible.rows() / 2; ++i) {
@@ -262,7 +285,7 @@ public:
     visible = filtered_visible;
 
     // Compute the sum of each column to count the number of views each point is
-    // visible in
+    // data.visible in
     Eigen::VectorXi visibility_count = visible.cast<int>().colwise().sum();
 
     int threshold = Options::ELIGIBILITY_POINTS[Options::MAX_LEVEL_POINTS];
@@ -273,67 +296,17 @@ public:
         points_to_keep.push_back(i);
       }
     }
-    // Filter visible and orig_meas matrices to keep only the columns for points
+    // Filter data.visible and orig_meas matrices to keep only the columns for points
     // above the threshold
     Eigen::MatrixXd refiltered_visible(visible.rows(), points_to_keep.size());
     for (size_t i = 0; i < points_to_keep.size(); ++i) {
       refiltered_visible.col(i) = visible.col(points_to_keep[i]);
     }
 
-    // Update visible with the filtered matrix
+    // Update data.visible with the filtered matrix
     return refiltered_visible;
   }
   //
-  // std::pair<Eigen::MatrixXd, Eigen::MatrixXd> normtrans(const
-  // Eigen::MatrixXd& points, bool isotropic = true) {
-  //     int number_of_points = points.cols();
-  //     int dimension = points.rows();
-  //
-  //     bool homogeneous = (points.row(dimension - 1).array() == 1).all();
-  //
-  //     if (homogeneous) {
-  //         --dimension; // Adjust dimension if points are homogeneous
-  //     }
-  //
-  //     // Calculate centroid of points
-  //     Eigen::VectorXd centroid = points.topRows(dimension).rowwise().mean();
-  //
-  //     // Calculate difference from centroid for each point
-  //     Eigen::MatrixXd diff = points.topRows(dimension).colwise() - centroid;
-  //
-  //     Eigen::MatrixXd trans;
-  //     if (isotropic) {
-  //         double scale = std::sqrt(2) /
-  //         (diff.array().square().colwise().sum().sqrt().mean()); trans =
-  //         Eigen::MatrixXd::Identity(dimension + 1, dimension + 1);
-  //         trans.topLeftCorner(dimension, dimension) *= scale;
-  //         trans.topRightCorner(dimension, 1) = -centroid * scale;
-  //     } else {
-  //         Eigen::VectorXd scale = (Eigen::VectorXd::Constant(dimension,
-  //         std::sqrt(2))
-  //                             .array() /
-  //                             diff.cwiseAbs().rowwise().mean().array()).matrix();
-  //         trans = Eigen::MatrixXd::Identity(dimension + 1, dimension + 1);
-  //         for (int i = 0; i < dimension; ++i) {
-  //             trans(i, i) = scale(i);
-  //             trans(i, dimension) = -centroid(i) * scale(i);
-  //         }
-  //     }
-  //
-  //     Eigen::MatrixXd transformedPoints = points;
-  //     if (homogeneous) {
-  //         transformedPoints = trans * points;
-  //     } else {
-  //         for (int i = 0; i < number_of_points; ++i) {
-  //             transformedPoints.col(i).head(dimension) =
-  //                 trans.topLeftCorner(dimension, dimension) *
-  //                 points.col(i).head(dimension) +
-  //                 trans.topRightCorner(dimension, 1);
-  //         }
-  //     }
-  //
-  //     return {trans, transformedPoints};
-  // }
   std::pair<Eigen::MatrixXd, Eigen::MatrixXd>
   normtrans(const Eigen::MatrixXd &inputPoints, bool isotropic = true) {
     Eigen::MatrixXd points = inputPoints;
@@ -430,3 +403,4 @@ public:
   }
   DataCleaningStage() {}
 };
+
