@@ -1,10 +1,12 @@
 #include <Eigen/Dense>
+#include "ppsfm_initialisation.h"
+#include "logger.h"
+#include "options.h"
+#include <functional>
 #include <iostream>
-#include <memory>
-#include <vector>
 #include <Eigen/Sparse>
-#include "dataCleaning.h"
 #include "dataStructures.hpp"
+#include "pairAffinityCalculator.h"
     
 // This class takes in measurements, img_sizes, centers, options
 //     * measurements: Original image coordinates (2FxN sparse matrix where missing data are [0;0])
@@ -36,20 +38,7 @@ private:
      * 
      */
     // Variable for storing alot of the output data like visibility matrix, data matrix, normalised measurements, normalisation transformation for each camera stacked vertically, un normalised measurements, etc
-    // DataStructures::SfMData data;
-    // stages vector to store the pointers to the stage as well as their data
 
-    // old impl
-    // Eigen::MatrixXi visible; // FxN binary visibility matrix
-    // Eigen::MatrixXd data; // Data matrix for computations
-    // Eigen::MatrixXd normalised_measurements; // 3FxN normalized measurements
-    // Eigen::MatrixXd normalisations_transformations; // 3Fx3 normalization transformations
-    // Eigen::MatrixXd image_measurements; // 3FxN unnormalized measurements
-    // Eigen::MatrixXd pseudo_inverse_measurements; // Fx3N matrix for projective depth elimination
-    // Eigen::RowVectorXi ignored_points; // 1xN binary mask for ignored points
-    // Variable for storing the series of models. 
-    // DataStructures::SfMModelSeries models;
-    // Variable for storing the measurements taken in to the pipeline.
 
 
     Eigen::SparseMatrix<double> measurements;
@@ -58,12 +47,16 @@ private:
     Eigen::MatrixXd image_size;
 
     Eigen::MatrixXd centers;
+    DataStructures::SfMData data;
+    
+    DataStructures::ViewpairAffinity pair_affinity;
 
     // This function sets the many of the data variables that come from the measurements passed in
     void cleanData();
      
     // This function sets the view_pairs and affinity measurements by making a call to our measurements and affinity Generator
     void pairsAffinity();
+
     
 public:
 
@@ -72,6 +65,18 @@ public:
 
     void runPipeline() {
         cleanData();    
+        pairsAffinity();
+        for(int i =0; i<Options::MAX_MODELS; i++){
+
+            Logger::logSection("Finding Initial Sub-Problem");
+            
+            std::unique_ptr<Initialisation> initialiser = std::make_unique<Initialisation>(data.normalised_measurements,data.visible, pair_affinity.view_pairs, pair_affinity.Affinity );
+            // Initialisation initialiser = Initialisation(data.image_measurements, data.visible,pair_affinity.view_pairs, pair_affinity.Affinity);
+            initialiser->process();
+
+
+        }
+
     }
 
     // Destructor

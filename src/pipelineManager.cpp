@@ -21,7 +21,14 @@ PipelineManager::~PipelineManager(){}
 // }
 
 void PipelineManager::cleanData(){
-    DataCleaningStage* dataCleaner = new DataCleaningStage;
+    std::unique_ptr<DataCleaningStage> dataCleaner(new DataCleaningStage); 
     dataCleaner->process(measurements);
+    this->data = dataCleaner->getData();
+}
+void PipelineManager::pairsAffinity(){
+    std::unique_ptr<PairAffinityStage> pairHandler(new PairAffinityStage); 
+    pairHandler->process(data.image_measurements, data.visible, image_size);
+    this->pair_affinity = pairHandler->getPairAffinity();
 
 }
+

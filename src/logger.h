@@ -3,8 +3,7 @@
 #include <string>
 
 #pragma once
-class Logger {
-public:
+namespace Logger {
 
      // Logs a section header with more spacing to signify a major section
     static void logSection(const std::string& sectionName) {

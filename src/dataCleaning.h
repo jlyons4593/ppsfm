@@ -22,13 +22,7 @@ private:
   Eigen::VectorXd pinv_meas_j;
   Eigen::VectorXd pinv_meas_v;
 
-  Logger logger;
 
-  void printColsRows(Eigen::MatrixXd matrix, std::string matrix_name) {
-
-    std::cout << matrix_name + " rows: " << matrix.rows() << std::endl
-              << matrix_name + " columns: " << matrix.cols() << std::endl;
-  }
   void sizeDataPinvVectors(){
 
     this->data_i.resize(6*number_of_visible);
@@ -50,14 +44,14 @@ public:
    void handleVisibility(){
 
 
-    logger.logSubsection("Creating visibility matrix");
+    Logger::logSubsection("Creating visibility matrix");
     data.visible = filterVisibleMatrix(dense_measurements);
     Eigen::RowVectorXi visibilitySum = data.visible.cast<int>().colwise().sum();
     data.removed_points=
         visibilitySum.array() <
         Options::ELIGIBILITY_POINTS[Options::MAX_LEVEL_POINTS];
 
-    logger.logSubsection("Removing Less data.visible Points");
+    Logger::logSubsection("Removing Less data.visible Points");
     std::vector<bool> pointsToRemove(data.visible.cols(), false);
     for (int i = 0; i < data.removed_points.size(); ++i) {
       pointsToRemove[i] = data.removed_points(i);
@@ -96,10 +90,10 @@ public:
   }
   // THIS FUNCTION NOW LOOKS CORRECT
   void process(Eigen::SparseMatrix<double> &measurements) {
-    logger.logSection("Prepare Data");
+    Logger::logSection("Prepare Data");
     dense_measurements = Eigen::MatrixXd(measurements);
 
-    logger.logSubsection("Creating visibility matrix");
+    Logger::logSubsection("Creating visibility matrix");
 
     handleVisibility();
     // ALL VARS CORRECT
@@ -254,7 +248,7 @@ public:
          data.cost_function_data(row, col) = data_v(k);
      }
 //
-     printColsRows(data.cost_function_data, "Cost Function Data");
+    DataStructures::printColsRows(data.cost_function_data, "Cost Function Data");
 //
      rows = static_cast<int>(pinv_meas_i.maxCoeff()) + 1;
      cols = static_cast<int>(pinv_meas_j.maxCoeff()) + 1;
@@ -267,7 +261,7 @@ public:
          int col = static_cast<int>(pinv_meas_j(k));
          data.pseudo_inverse_measurements(row, col) = pinv_meas_v(k);
      }
-    printColsRows(data.pseudo_inverse_measurements,"pinv_meas");
+    DataStructures::printColsRows(data.pseudo_inverse_measurements,"pinv_meas");
   }
 
   Eigen::MatrixXd filterVisibleMatrix(Eigen::MatrixXd &dense_measurements) {
@@ -363,7 +357,7 @@ public:
   //   for (int k = 0; k < measurements.outerSize(); ++k) {
   //       for (Eigen::SparseMatrix<double>::InnerIterator it(measurements, k);
   //       it; ++it) {
-  //           sumOfSquares += std::pow(it.value(), 2);
+ //           sumOfSquares += std::pow(it.value(), 2);
   //       }
   //   }
   //   Eigen::SparseMatrix<double> cpm_meas = meas_transposed / sumOfSquares;
