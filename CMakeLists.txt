@@ -13,14 +13,14 @@ find_package(Matlab REQUIRED MX_LIBRARY MAT_LIBRARY ENG_LIBRARY)
 
 find_package(Eigen3 REQUIRED)
 # Include directories
-include_directories(${Matlab_INCLUDE_DIRS})
-include_directories(${EIGEN3_INCLUDE_DIR})
+target_include_directories(app PRIVATE ${Matlab_INCLUDE_DIRS})
+target_include_directories(app PRIVATE ${EIGEN3_INCLUDE_DIR})
 
 
 file(GLOB OBJECT_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/*.h)
 
 set(SOURCE_FILES
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/implementation/*.cpp
         ${OBJECT_HEADERS}
 )
 
