@@ -1,10 +1,9 @@
 #include <Eigen/Dense>
+#include <Eigen/Sparse>
+#include "factorCompletion.h"
 #include "ppsfm_initialisation.h"
 #include "logger.h"
 #include "options.h"
-#include <functional>
-#include <iostream>
-#include <Eigen/Sparse>
 #include "dataStructures.hpp"
 #include "pairAffinityCalculator.h"
     
@@ -50,6 +49,7 @@ private:
     DataStructures::SfMData data;
     DataStructures::ComputedCameraPoints camera_variables;
     DataStructures::ViewpairAffinity pair_affinity;
+    
 
     // This function sets the many of the data variables that come from the measurements passed in
     void cleanData();
@@ -63,21 +63,8 @@ public:
     // Constructor for PipelineManager
     PipelineManager(DataStructures::InputMatrices input);
 
-    void runPipeline() {
-        cleanData();    
-        pairsAffinity();
-        for(int i =0; i<Options::MAX_MODELS; i++){
-
-            Logger::logSection("Finding Initial Sub-Problem");
-            
-            std::unique_ptr<Initialisation> initialiser = std::make_unique<Initialisation>(data.normalised_measurements,data.visible, pair_affinity.view_pairs, pair_affinity.Affinity);
-            initialiser->process();
-            camera_variables = initialiser->getCameraPoints();
-
-
-        }
-
-    }
+    void runPipeline();
+    
 
     // Destructor
     ~PipelineManager();

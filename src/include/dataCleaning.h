@@ -1,3 +1,4 @@
+
 #include "dataStructures.hpp"
 #include "logger.h"
 #include "options.h"
@@ -110,14 +111,11 @@ public:
     for (int j = 0; j < number_of_views; ++j) {
       Eigen::RowVectorXd visible_points = data.visible.row(j);
 
-      // Assuming 'data.visible' is a binary matrix indicating visibility
       std::vector<int> vis_pts_indices; // This will need to be filled with
-                                        // indices of data.visible points for view j
       // Iterate over 'visible_points' to find and store indices of visible
       // points
       for (int i = 0; i < visible_points.size(); ++i) {
-        if (visible_points(i) > 0) { // Assuming a point is data.visible if its
-                                     // corresponding value is > 0
+        if (visible_points(i) > 0) { 
           vis_pts_indices.push_back(i);
         }
       }
@@ -127,7 +125,7 @@ public:
             dense_measurements.block((j) * 2, idx, 2, 1);
       }
       for (int idx : vis_pts_indices) {
-        data.image_measurements((j * 3) + 2, idx) = 1; // Eigen is 0-based
+        data.image_measurements((j * 3) + 2, idx) = 1; 
       }
 
       Eigen::MatrixXd block(3, vis_pts_indices.size());
@@ -143,8 +141,8 @@ public:
       // Update normalisations
       // EXPLAIN WHAT THIS IS DOING
       for (int i = 0; i < vis_pts_indices.size(); ++i) {
-        int point_col = vis_pts_indices[i]; // The column index in norm_meas for
-                                            // the data.visible point
+        int point_col = vis_pts_indices[i]; 
+                                           
 
         data.normalised_measurements.block(j * 3, point_col, 3, 1) =
             transformed_measurements.col(i);
@@ -169,11 +167,11 @@ public:
     //
 
     Eigen::MatrixXd meas;
-    for (size_t k = 0; k < number_of_visible; ++k) { // Using 0-based indexing
-      int startRow = 3 * view_idx[k] - 3; // Adjust for 0-based indexing in C++
+    for (size_t k = 0; k < number_of_visible; ++k) { 
+      int startRow = 3 * view_idx[k] - 3; 
 
       int colIdx =
-          point_idx[k]; // No adjustment needed if `point_idx` is 0-based
+          point_idx[k]; 
       // Ensure indices are within bounds
       if (startRow >= 0 && colIdx >= 0 &&
           startRow + 2 < this->data.normalised_measurements.rows() &&
@@ -185,17 +183,15 @@ public:
       auto [cm, pm] = eliminate_pinv(meas);
 
       pinv_meas_i.segment(3 * k, 3) = Eigen::VectorXd::Constant(3, view_idx[k]);
-      int startIdx = 3 * (point_idx[k]); // Adjust for C++ 0-based indexing
+      int startIdx = 3 * (point_idx[k]); 
 
       // Assuming pinv_meas_j has been sized correctly
       if (startIdx + 2 < pinv_meas_j.size()) {
         for (int i = 0; i < 3; ++i) {
           pinv_meas_j(startIdx + i) =
-              startIdx + i; // +1 to adjust for 0-based indexing
+              startIdx + i; 
         }
       }
-
-      // Adjust for 0-based indexing when accessing pinv_meas_v
 
       // Assign values from pm to pinv_meas_v
       for (size_t i = 0; i < pm.size(); ++i) {
@@ -213,8 +209,8 @@ public:
       data_i.segment(k + 2, 2) << idx1, idx2;
       data_i.segment(k + 4, 2) << idx1, idx2;
 
-      data_j(k) = 3 * point_idx[k];     // Adjust for 0-based indexing
-      data_j(k + 1) = 3 * point_idx[k]; // Adjust for 0-based indexing
+      data_j(k) = 3 * point_idx[k];     
+      data_j(k + 1) = 3 * point_idx[k]; 
       data_j(k + 2) = 3 * point_idx[k] + 1;
       data_j(k + 3) = 3 * point_idx[k] + 1;
       data_j(k + 4) = 3 * point_idx[k] + 2;
@@ -397,4 +393,3 @@ public:
   }
   DataCleaningStage() {}
 };
-

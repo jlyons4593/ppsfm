@@ -1,3 +1,4 @@
+
 #include <Eigen/Sparse>
 class InputData {
 public:
@@ -14,5 +15,4 @@ class AffinityInputData : public InputData {
 public:
     // Additional specific attributes for affinity generation
 };
-
 

@@ -1,4 +1,5 @@
 
+
 #include <iostream>
 #include <string>
 
@@ -20,5 +21,4 @@ namespace Logger {
         std::cout << "ERROR: " << errorMessage << std::endl;
     }
 };
-
 

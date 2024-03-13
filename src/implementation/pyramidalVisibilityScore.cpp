@@ -1,27 +1,11 @@
-#include <Eigen/Dense>
-#include "dataStructures.hpp"
+#include "pyramidalVisibilityScore.h"
 #include <iostream>
-#include <vector>
-#include <cmath>
-#include <algorithm>
 
-class PyramidalVisibilityScore {
-private:
-    int level;
-    int width;
-    int height;
-    Eigen::MatrixXi proj_count;
-    Eigen::RowVectorXi width_range;
-    Eigen::RowVectorXd height_range;
-    Eigen::RowVectorXd dimension_range;
-    std::pair<Eigen::RowVectorXi,Eigen::RowVectorXi> visibleCell(Eigen::MatrixXd projections){
-        // 
+    std::pair<Eigen::RowVectorXi,Eigen::RowVectorXi> PyramidalVisibilityScore::visibleCell(Eigen::MatrixXd projections){
+
         Eigen::RowVectorXi idx_width = Eigen::RowVectorXi::Ones(projections.cols());
         Eigen::RowVectorXi idx_height = Eigen::RowVectorXi::Ones(projections.cols());
 
-        // // std::cout<<idx_width.size()<<" "<<idx_height.size()<<std::endl;
-        // // for (int k = 0; k < dimension_range.size(); ++k) {
-        //
         for (int k = 0; k < dimension_range.size(); ++k) {
             Eigen::RowVectorXi idx_middle_width = idx_width + Eigen::RowVectorXi::Constant(projections.cols(), dimension_range(k));
             Eigen::RowVectorXi idx_middle_height = idx_height + Eigen::RowVectorXi::Constant(projections.cols(), dimension_range(k));
@@ -29,7 +13,6 @@ private:
             //Width section
             Eigen::VectorXd comparisonVector(idx_middle_width.size());
             for (int i = 0; i < idx_middle_width.size(); ++i) {
-                // Adjust for 0-based indexing by subtracting 1 from idx_middle(i)
                 comparisonVector(i) = width_range(idx_middle_width(i) );
             }
 
@@ -47,7 +30,6 @@ private:
 
             Eigen::VectorXd comparisonVector2(idx_middle_height.size());
             for (int i = 0; i < idx_middle_height.size(); ++i) {
-                // Adjust for 0-based indexing by subtracting 1 from idx_middle(i)
                 comparisonVector2(i) = height_range(idx_middle_height(i));
             }
 
@@ -65,8 +47,8 @@ private:
 
       return {idx_width,idx_height};
     }
-public:
-    PyramidalVisibilityScore(int image_width, int image_height, int score_level = -1, const Eigen::MatrixXd& projections = Eigen::MatrixXd())
+
+PyramidalVisibilityScore::PyramidalVisibilityScore(int image_width, int image_height, int score_level , const Eigen::MatrixXd& projections)
         : width(image_width), height(image_height), level(score_level) {
 
         int dimension = std::pow(2, level); 
@@ -87,14 +69,9 @@ public:
 
     }
 
-
-    void addProjections(const Eigen::MatrixXd projections) {
+    void PyramidalVisibilityScore::addProjections(const Eigen::MatrixXd projections) {
         if(projections.cols()>2){
             auto [idx_width, idx_height] = visibleCell(projections);
-            // std::cout<<"idx width: "<<idx_width<<std::endl;
-            // std::cout<<"idx width size: "<<idx_width.size()<<std::endl;
-            // std::cout<<"idx height: "<<idx_height<<std::endl;
-            // std::cout<<"idx height size: "<<idx_height.size()<<std::endl;
            for(int i=0; i<idx_width.size();i++) {
 
                 proj_count(idx_height(i), idx_width(i))++;
@@ -103,11 +80,11 @@ public:
         // std::cout<<proj_count<<std::endl;
     }
 
-
-    void removeProjections(const Eigen::MatrixXi& projs) {
+    void PyramidalVisibilityScore::removeProjections(const Eigen::MatrixXi& projs) {
         // Similar to addProjections, but decrementing the proj_count for each projection
     }
-    Eigen::MatrixXi downsampleAndCombine(const Eigen::MatrixXi& visibility) {
+
+    Eigen::MatrixXi PyramidalVisibilityScore::downsampleAndCombine(const Eigen::MatrixXi& visibility) {
         // Assuming visibility is a binary matrix (elements are 0 or 1)
         // Create a new matrix half the size of 'visibility'
         Eigen::MatrixXi reduced(visibility.rows() / 2, visibility.cols() / 2);
@@ -122,14 +99,14 @@ public:
 
         return reduced;
     }
-    double computeScore(bool normalized = false) {
+
+    double PyramidalVisibilityScore::computeScore(bool normalized) {
         // Implement the score computation as in MATLAB, considering the Eigen way of handling matrices
         // and the logical operations for visibility
-        int score=0;
+        double score=0;
         // there should be a check to see if the projection_count is empty
         if(level>0){
             Eigen::MatrixXi visibility = (proj_count.array() > 0).cast<int>();
-            // std::cout<<visibility<<std::endl;
             for(int k = 0; k<dimension_range.size(); k++){
                 int nonZeroCount=0;
                 for(int i=0; i< visibility.cols(); i++){
@@ -143,24 +120,24 @@ public:
                 visibility = downsampleAndCombine(visibility);
             }
             //visib filled
+        
+            if(normalized){
+                double max = maxScore();
+                // std::cout<<"Score: "<<score<<" MaxScore: "<<max<< " NewScore: "<< score/max<<std::endl;
+                score = score/max;
+            }
 
         }
         return score;
     }
 
-    double maxScore() {
-        int score = 0;
+    double PyramidalVisibilityScore::maxScore() {
+        double score = 0;
         if(level>0){
-            // Perform the operations
-            Eigen::VectorXd result = dimension_range.array() * 2; // Multiply each element by 2
-            result = result.array().square(); // Square each element
-            double score = (dimension_range.array() * result.array()).sum(); // Multiply element-wise with original and sum
+            score = (dimension_range.array() * (dimension_range.array() * 2).square()).sum();
+            // Eigen::VectorXd result = dimension_range.array() * 2; // Multiply each element by 2
+            // result = result.array().square(); // Square each element
+            // score = (dimension_range.array() * result.array()).sum(); // Multiply element-wise with original and sum
         }
         return score;
-        // Implement the maximum score computation
     }
-
-
-    // Private methods if needed
-};
-

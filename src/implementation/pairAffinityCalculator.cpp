@@ -1,24 +1,9 @@
-#include "options.h"
+#include "pairAffinityCalculator.h"
 #include "logger.h"
-#include "dataStructures.hpp"
-#include <iostream>
-#include "pyramidalVisibilityScore.h"
-#include <Eigen/Dense>
+#include "options.h"
 #include <numeric>
-#include <utility>
-class PairAffinityStage {
-private:
-  DataStructures::ViewpairAffinity pairAffinity;
-  // std::pair<Eigen::MatrixXd, Eigen::VectorXd> pairAffinity;
 
-public:
-  PairAffinityStage() {}
-  // std::pair<Eigen::MatrixXd, Eigen::VectorXd> getPairAffinity() {
-  DataStructures::ViewpairAffinity getPairAffinity() {
-    return this->pairAffinity;
-  }
-
-  void process(Eigen::MatrixXd image_measurements, Eigen::MatrixXd visible,
+  void PairAffinityCalculator::process(Eigen::MatrixXd image_measurements, Eigen::MatrixXd visible,
                Eigen::MatrixXd image_sizes) {
 
     Logger::logSection("Pair Affinity");
@@ -118,4 +103,7 @@ public:
     Logger::logSubsection("View Pairs and Affinity Stored as Member");
 
   } 
-};
+
+  DataStructures::ViewpairAffinity PairAffinityCalculator::getPairAffinity() {
+    return this->pairAffinity;
+  }

@@ -1,23 +1,6 @@
-#include <algorithm> // For std::shuffle
-#include <numeric>   // For std::iota
-#include <ostream>
-#include <vector>
-#include <random>    // For std::default_random_engine
-#include "dataStructures.hpp"
-#include <Eigen/Dense>
-#include <iostream>
+#include "estimatedFundamentalMatrix.h"
 
-class EstimatedFundamentalMatrix{
-private:
-    Eigen::MatrixXd fundamental_matrix;
-    Eigen::Array<bool, Eigen::Dynamic, 1> inliers;
-    // std::pair<Eigen::MatrixXd,Eigen::VectorXi> ransac_estimate(){
-    //
-    // }
-
-    std::random_device rd;
-    std::default_random_engine rng;
-Eigen::VectorXd linvec(const Eigen::VectorXd& a, const Eigen::VectorXd& b) {
+Eigen::VectorXd EstimatedFundamentalMatrix::linvec(const Eigen::VectorXd& a, const Eigen::VectorXd& b) {
     Eigen::VectorXd v(9); // Initialize a vector of size 9
 
     v(0) = b(0) * a(0);
@@ -32,21 +15,23 @@ Eigen::VectorXd linvec(const Eigen::VectorXd& a, const Eigen::VectorXd& b) {
 
     return v;
 }
-    std::vector<int> get_random_sequence(int number_of_projections){
 
-            std::vector<int> test_set(number_of_projections);
-            std::iota(test_set.begin(), test_set.end(), 1); // Fill with 1, 2, ..., num_projs
+std::vector<int> EstimatedFundamentalMatrix::get_random_sequence(int number_of_projections){
 
-            // Create a random number generator
+    std::vector<int> test_set(number_of_projections);
+    std::iota(test_set.begin(), test_set.end(), 1); // Fill with 1, 2, ..., num_projs
 
-            // Shuffle the vector to get a random permutation
-            std::shuffle(test_set.begin(), test_set.end(), rng);
-            if (test_set.size() > 8) {
-                test_set.resize(8);
-            }
-        return test_set;
+    // Create a random number generator
+
+    // Shuffle the vector to get a random permutation
+    std::shuffle(test_set.begin(), test_set.end(), rng);
+    if (test_set.size() > 8) {
+        test_set.resize(8);
     }
-    Eigen::MatrixXd estimate(Eigen::MatrixXd coeffs, bool enforce_rank){
+    return test_set;
+}
+
+    Eigen::MatrixXd EstimatedFundamentalMatrix::estimate(Eigen::MatrixXd coeffs, bool enforce_rank){
         // Using jacobi SVD as faster for smaller problems
         // Possible performance improvement if I can utilise this as a thin V instead of a full V as will use less compute but will become inconsistent with matlab
         Eigen::JacobiSVD<Eigen::MatrixXd> svd(coeffs, Eigen::ComputeFullV);
@@ -80,7 +65,7 @@ Eigen::VectorXd linvec(const Eigen::VectorXd& a, const Eigen::VectorXd& b) {
         // DataStructures::printColsRows(fun_mat, "fundamental_matrix");
     }
 
-    std::pair<Eigen::MatrixXd,Eigen::Array<bool, Eigen::Dynamic, 1>> estimateRansac(Eigen::MatrixXd coeffs, double confidence, int max_iter, double dist_thresh){
+    std::pair<Eigen::MatrixXd,Eigen::Array<bool, Eigen::Dynamic, 1>> EstimatedFundamentalMatrix::estimateRansac(Eigen::MatrixXd coeffs, double confidence, int max_iter, double dist_thresh){
         
         int number_of_projections = coeffs.rows();
         double best_score = std::numeric_limits<double>::infinity();
@@ -154,7 +139,7 @@ Eigen::VectorXd linvec(const Eigen::VectorXd& a, const Eigen::VectorXd& b) {
         return {best_estim, best_inliers};
     }
 
-Eigen::MatrixXd applyLinvecToProjections(const Eigen::MatrixXd& projs1, const Eigen::MatrixXd& projs2) {
+Eigen::MatrixXd EstimatedFundamentalMatrix::applyLinvecToProjections(const Eigen::MatrixXd& projs1, const Eigen::MatrixXd& projs2) {
     if (projs1.cols() != projs2.cols()) {
         throw std::invalid_argument("projs1 and projs2 must have the same number of columns.");
     }
@@ -169,34 +154,3 @@ Eigen::MatrixXd applyLinvecToProjections(const Eigen::MatrixXd& projs1, const Ei
 
     return coeffs;
 }
-    
-public:
-    Eigen::MatrixXd getFundamentalMatrix(){
-
-        return fundamental_matrix;
-    }
-    Eigen::Array<bool,Eigen::Dynamic,1>getInliers(){
-
-        return inliers;
-    }
-    EstimatedFundamentalMatrix( const Eigen::MatrixXd& projs1, // Projections in the first image (2xN)
-                               const Eigen::MatrixXd& projs2, // Corresponding projections in the second image (2xN)
-                               double confidence,             // Confidence to stop robust estimation early in RANSAC
-                               int max_iter,                  // Maximum number of iterations in RANSAC
-                               double dist_thresh             // Distance threshold for computing inliers in RANSAC
-                               ): rng(rd())
-    {
-
-        // Setting default random device
-        //
-        Eigen::MatrixXd coeffs = applyLinvecToProjections(projs1, projs2);
-        //Coeffs are correct
-
-
-        // Currently only works for Ransac Method
-        std::pair<Eigen::MatrixXd, Eigen::Array<bool, Eigen::Dynamic, 1>> fund_mat_inliers = estimateRansac(coeffs,confidence,max_iter,dist_thresh);
-
-       fundamental_matrix = fund_mat_inliers.first;
-       inliers = fund_mat_inliers.second;
-    }
-};

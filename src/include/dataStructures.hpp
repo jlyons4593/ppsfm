@@ -1,3 +1,4 @@
+
 #include <Eigen/Dense>
 #include <Eigen/Sparse>
 #include <iostream>
@@ -13,12 +14,15 @@ struct ComputedCameraPoints
 {
     Eigen::MatrixXd cameras;
     Eigen::MatrixXd points;
-    Eigen::VectorXi pathway;
+    Eigen::RowVectorXi pathway;
+    Eigen::RowVectorXi positive_pathway;
+    Eigen::RowVectorXi negative_pathway;
+
     Eigen::Array<std::variant<int,std::vector<int>>, Eigen::Dynamic, 1> fixed; 
 };
 
 
-void printColsRows(Eigen::MatrixXd matrix, std::string matrix_name) {
+inline void printColsRows(Eigen::MatrixXd matrix, std::string matrix_name) {
 
     std::cout << matrix_name + " rows: " << matrix.rows() << std::endl
 	<< matrix_name + " columns: " << matrix.cols() << std::endl;
@@ -87,4 +91,3 @@ struct SfMModelSeries{
 };
 
 }
-

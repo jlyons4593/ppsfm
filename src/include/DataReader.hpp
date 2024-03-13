@@ -4,19 +4,21 @@
 #include <Eigen/Dense>
 #include "dataStructures.hpp"
 
-using namespace DataStructures;
+
+#pragma once
+namespace DataReader {
 
 // Overload the << operator to print the Matrices struct
-std::ostream& operator<<(std::ostream& os, const InputMatrices& matrices) {
+inline std::ostream& operator<<(std::ostream& os, const DataStructures::InputMatrices& matrices) {
     os << "Measurements:\n" << matrices.measurements << "\n\n";
     os << "Image Size:\n" << matrices.image_size << "\n\n";
     os << "Centers:\n" << matrices.centers << "\n";
     return os;
 }
 
-InputMatrices matread(const char *file)
+inline DataStructures::InputMatrices matread(const char *file)
 {
-    InputMatrices matrices;
+    DataStructures::InputMatrices matrices;
 
     // Open MAT-file
     MATFile *pmat = matOpen(file, "r");
@@ -75,4 +77,5 @@ InputMatrices matread(const char *file)
     matClose(pmat);
 
     return matrices;
+}
 }
