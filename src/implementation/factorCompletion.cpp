@@ -1,11 +1,15 @@
 #include "factorCompletion.h"
+#include "estimate_robust_views.h"
 #include "options.h"
 #include "pyramidalVisibilityScore.h"
+#include "logger.h"
 #include <iostream>
 #include <numeric>
 #include <vector>
 
 void FactorCompletion::process() {
+
+  Logger::logSection("Factor Completion");
 
   int num_points = data.visible.cols();
   int num_views = data.visible.rows();
@@ -23,8 +27,10 @@ void FactorCompletion::process() {
 
   int last_dir_change = 1;
 
-  Eigen::VectorXd rejected_views = Eigen::VectorXd::Zero(num_views);
-  Eigen::VectorXd rejected_points = Eigen::VectorXd::Zero(num_points);
+  rejected_views.resize(num_views);
+  rejected_points.resize(num_points);
+  rejected_views = Eigen::VectorXi::Zero(num_views);
+  rejected_points = Eigen::VectorXi::Zero(num_points);
 
   init_pvs(num_views);
 
@@ -41,6 +47,8 @@ void FactorCompletion::process() {
 
   int num_iter = 0;
   int iter_refined = 0;
+
+  Logger::logSubsection("Adding Points And Views");
 
   while (
       (number_of_known_points < num_points ||
@@ -89,9 +97,8 @@ int FactorCompletion::try_adding_views(std::vector<int> eligibles, int level_vie
         count++;
       } 
     }
-    // std::cout<<correct_visible_points<<std::endl;
     if(Options::ROBUST_ESTIMATION){
-
+      EstimatedRobustViews* rob = new EstimatedRobustViews(data, camera_variables,correct_visible_points, eligibles[idx], rejected_views(eligibles[idx]), level_views);
     }else{
 
     }
@@ -100,7 +107,7 @@ int FactorCompletion::try_adding_views(std::vector<int> eligibles, int level_vie
   return 0;
 }
 std::pair<Eigen::RowVectorXd ,std::vector<int>> FactorCompletion::search_eligible_views(Eigen::VectorXi thresholds,
-                                             Eigen::VectorXd rejected_views) {
+                                             Eigen::VectorXi rejected_views) {
   int number_of_views = data.visible.rows();
   // std::cout<<number_of_views<<std::endl;
   Eigen::Array<bool, Eigen::Dynamic, 1> unknown_views =

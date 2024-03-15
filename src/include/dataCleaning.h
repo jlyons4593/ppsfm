@@ -86,6 +86,23 @@ public:
     number_of_points = data.visible.cols();
   }
 
+  std::pair<Eigen::MatrixXd, Eigen::MatrixXd>
+  eliminate_dlt(const Eigen::MatrixXd &measurements) {
+    Eigen::MatrixXd cpm_meas = measurements.transpose() / measurements.array().square().sum();
+    Eigen::MatrixXd data = cpm(measurements);
+    Eigen::MatrixXd sub_data = data.topRows(2);
+    return {sub_data, cpm_meas};
+  }
+
+Eigen::MatrixXd cpm(const Eigen::MatrixXd& v) {
+    assert(v.rows() == 3 && v.cols() == 1);
+
+    Eigen::MatrixXd M(3, 3);
+    M << 0, -v(2), v(1),
+         v(2), 0, -v(0),
+        -v(1), v(0), 0;
+    return M;
+}
   DataStructures::SfMData getData(){
     return data;
   }
@@ -162,13 +179,13 @@ public:
         }
       }
     }
-    // std::cout<<"view idx size: "<<view_idx.size()<<std::endl;
-    // std::cout<<"point idx size: "<<point_idx.size()<<std::endl;
-    //
-
-    Eigen::MatrixXd meas;
+  
+    Eigen::MatrixXd meas(1,3);
     for (size_t k = 0; k < number_of_visible; ++k) { 
-      int startRow = 3 * view_idx[k] - 3; 
+    // std::cout<<number_of_visible<<std::endl;
+    // for (size_t k = 10422; k < 10423; ++k) { 
+    // for (size_t k = 0; k < 2; ++k) { 
+      int startRow = 3 * view_idx[k]; 
 
       int colIdx =
           point_idx[k]; 
@@ -177,60 +194,64 @@ public:
           startRow + 2 < this->data.normalised_measurements.rows() &&
           colIdx < this->data.normalised_measurements.cols()) {
         meas = this->data.normalised_measurements.block(startRow, colIdx, 3, 1);
+        // std::cout<<meas<<std::endl;
         // Optionally, use 'meas' here, e.g., print or process it
       }
 
-      auto [cm, pm] = eliminate_pinv(meas);
+      // auto [cm, pm] = eliminate_pinv(meas);
+      auto [cm, pm] = eliminate_dlt(meas);
 
       pinv_meas_i.segment(3 * k, 3) = Eigen::VectorXd::Constant(3, view_idx[k]);
+
       int startIdx = 3 * (point_idx[k]); 
 
       // Assuming pinv_meas_j has been sized correctly
       if (startIdx + 2 < pinv_meas_j.size()) {
         for (int i = 0; i < 3; ++i) {
-          pinv_meas_j(startIdx + i) =
+          pinv_meas_j(k*3+i) =
               startIdx + i; 
         }
       }
 
       // Assign values from pm to pinv_meas_v
       for (size_t i = 0; i < pm.size(); ++i) {
-        if (k + i < pinv_meas_v.size()) {
-          pinv_meas_v(k + i) = pm(i);
+        if (3*k + i < pinv_meas_v.size()) {
+          pinv_meas_v(k*3 + i) = pm(i);
         }
       }
+      // std::cout<<pinv_meas_v(k+1)<<std::endl;
       int idx1 = 2 * view_idx[k];
       int idx2 = 2 * view_idx[k] + 1;
 
       // Calculate start index for data_i, data_j, data_v updates
 
       // Update data_i with idx
-      data_i.segment(k, 2) << idx1, idx2;
-      data_i.segment(k + 2, 2) << idx1, idx2;
-      data_i.segment(k + 4, 2) << idx1, idx2;
+      data_i.segment<2>(k*6, 2) << idx1, idx2;
+      data_i.segment<2>(k*6 + 2, 2) << idx1, idx2;
+      data_i.segment<2>(k*6 + 4, 2) << idx1, idx2;
 
-      data_j(k) = 3 * point_idx[k];     
-      data_j(k + 1) = 3 * point_idx[k]; 
-      data_j(k + 2) = 3 * point_idx[k] + 1;
-      data_j(k + 3) = 3 * point_idx[k] + 1;
-      data_j(k + 4) = 3 * point_idx[k] + 2;
-      data_j(k + 5) = 3 * point_idx[k] + 2;
+      data_j(k*6) = 3 * point_idx[k];     
+      data_j(k*6 + 1) = 3 * point_idx[k]; 
+      data_j(k*6 + 2) = 3 * point_idx[k] + 1;
+      data_j(k*6 + 3) = 3 * point_idx[k] + 1;
+      data_j(k*6 + 4) = 3 * point_idx[k] + 2;
+      data_j(k*6 + 5) = 3 * point_idx[k] + 2;
 
       std::vector<double> cm_flattened;
-      for (int i = 0; i < cm.rows(); ++i) {
-        for (int j = 0; j < cm.cols(); ++j) {
+      for (int j = 0; j < cm.cols(); ++j) {
+        for (int i = 0; i < cm.rows(); ++i) {
           cm_flattened.push_back(cm(i, j));
         }
       }
       // Assuming cm_flattened now contains the flattened values, assign them to
       // data_v
       for (size_t i = 0; i < cm_flattened.size(); ++i) {
-        if (k + i < data_v.size()) {
-          data_v(k + i) = cm_flattened[i];
+        if (k*6 + i < data_v.size()) {
+          data_v(k*6 + i) = cm_flattened[i];
         }
       }
+    
     }
-
 
     int rows = static_cast<int>(data_i.maxCoeff()) + 1;
     int cols = static_cast<int>(data_j.maxCoeff()) + 1;
@@ -243,7 +264,8 @@ public:
          int col = static_cast<int>(data_j(k));
          data.cost_function_data(row, col) = data_v(k);
      }
-//
+     // std::cout<<data.cost_function_data<<std::endl;
+
     DataStructures::printColsRows(data.cost_function_data, "Cost Function Data");
 //
      rows = static_cast<int>(pinv_meas_i.maxCoeff()) + 1;
@@ -252,11 +274,12 @@ public:
      // Initialize the data matrix with zeros
      data.pseudo_inverse_measurements = Eigen::MatrixXd::Zero(rows, cols);
     
-     for(int k = 0; k < pinv_meas_i.size(); ++k) {
-         int row = static_cast<int>(pinv_meas_i(k));
-         int col = static_cast<int>(pinv_meas_j(k));
-         data.pseudo_inverse_measurements(row, col) = pinv_meas_v(k);
+     for(int p = 0; p < pinv_meas_i.size(); ++p) {
+         int row = static_cast<int>(pinv_meas_i(p));
+         int col = static_cast<int>(pinv_meas_j(p));
+         data.pseudo_inverse_measurements(row, col) = pinv_meas_v(p);
      }
+     // std::cout<<data.pseudo_inverse_measurements<<std::endl;
     DataStructures::printColsRows(data.pseudo_inverse_measurements,"pinv_meas");
   }
 

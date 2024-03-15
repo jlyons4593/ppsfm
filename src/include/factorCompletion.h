@@ -8,6 +8,8 @@ private:
     DataStructures::ViewpairAffinity pair_affinity;
     int last_path;
 
+    Eigen::VectorXi rejected_views;
+    Eigen::VectorXi rejected_points;
     Eigen::MatrixXd centers;
     Eigen::MatrixXd image_sizes;
     std::vector<PyramidalVisibilityScore*> pvs_scores;
@@ -24,7 +26,7 @@ public:
 
     void init_pvs(int num_views);
     
-    std::pair<Eigen::RowVectorXd, std::vector<int>> search_eligible_views(Eigen::VectorXi thresholds, Eigen::VectorXd rejected_views);
+    std::pair<Eigen::RowVectorXd, std::vector<int>> search_eligible_views(Eigen::VectorXi thresholds, Eigen::VectorXi rejected_views);
 
     int try_adding_views(std::vector<int> eligibles, int level_views);
 };
