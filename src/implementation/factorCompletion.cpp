@@ -140,7 +140,7 @@ int FactorCompletion::try_adding_views(std::vector<int> eligibles, int level_vie
       inliers(eligibles[idx], inlier_points.array()) = true;
       nums_added++;
       last_path++;
-      camera_variables.pathway(last_path) = -eligibles[idx];
+      camera_variables.pathway(last_path) = -(eligibles[idx]+1);
       camera_variables.negative_pathway.conservativeResize(camera_variables.negative_pathway.size()+1);
       camera_variables.negative_pathway(last_path-311) = eligibles[idx];
       camera_variables.fixed[last_path] = inlier_points;
