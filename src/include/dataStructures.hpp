@@ -17,7 +17,7 @@ struct ComputedCameraPoints {
   Eigen::RowVectorXi positive_pathway;
   Eigen::RowVectorXi negative_pathway;
 
-  Eigen::Array<std::variant<int, std::vector<int>>, Eigen::Dynamic, 1> fixed;
+  Eigen::Array<std::variant<int, std::vector<int>, Eigen::VectorXi>, Eigen::Dynamic, 1> fixed;
 };
 
 inline void printColsRows(Eigen::MatrixXd matrix, std::string matrix_name) {

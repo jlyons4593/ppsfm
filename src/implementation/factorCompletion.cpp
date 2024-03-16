@@ -1,4 +1,6 @@
 #include "factorCompletion.h"
+#include "Refinement.h"
+#include "estimatedViews.h"
 #include "estimate_robust_views.h"
 #include "options.h"
 #include "pyramidalVisibilityScore.h"
@@ -41,6 +43,7 @@ void FactorCompletion::process() {
       std::max(Options::INIT_LEVEL_POINTS, Options::MAX_LEVEL_POINTS);
 
   int number_of_known_views = camera_variables.negative_pathway.size();
+  // std::cout<<camera_variables.negative_pathway<<std::endl;
   int number_of_known_points = camera_variables.positive_pathway.size();
   int number_of_added_points = number_of_known_points;
   int number_of_added_views = number_of_known_views;
@@ -67,7 +70,15 @@ void FactorCompletion::process() {
       
       
       if(eligible_views.size()!=0){
-        int number_added_views = try_adding_views(eligible_views, level_views);
+        int number_of_added_views = try_adding_views(eligible_views, level_views);
+        if(number_of_added_views>0){
+          number_of_known_views = number_of_known_views+number_of_added_views;
+          level_points = std::max(1, level_points-1);
+          Refinement* refinement = new Refinement(data, camera_variables,init_refine, last_path, false,0 );
+          delete(refinement);
+
+        }
+
 
       }
     }
@@ -77,8 +88,8 @@ void FactorCompletion::process() {
 int FactorCompletion::try_adding_views(std::vector<int> eligibles, int level_views){
   int nums_added = 0;
   auto& known_points = camera_variables.positive_pathway;
-  // for (int idx =0; idx<eligibles.size(); ++idx){
-  for (int idx =0; idx<1; ++idx){
+  for (int idx =0; idx<eligibles.size(); ++idx){
+  // for (int idx =0; idx<1; ++idx){
 
     Eigen::RowVectorXi visible_points(known_points.size());
     for (size_t i = 0; i < known_points.size(); ++i) {
@@ -97,14 +108,47 @@ int FactorCompletion::try_adding_views(std::vector<int> eligibles, int level_vie
         count++;
       } 
     }
+    Eigen::VectorXi inlier_points;
+    Eigen::VectorXd best_estimate;
     if(Options::ROBUST_ESTIMATION){
-      EstimatedRobustViews* rob = new EstimatedRobustViews(data, camera_variables,correct_visible_points, eligibles[idx], rejected_views(eligibles[idx]), level_views);
+      EstimatedRobustViews* estim_views = new EstimatedRobustViews(data, camera_variables,correct_visible_points, eligibles[idx], rejected_views(eligibles[idx]), level_views);
+      best_estimate.resize(estim_views->best_estimate.size());
+      inlier_points.resize(estim_views->best_inliers.size());
+      best_estimate = estim_views->best_estimate;
+      inlier_points = estim_views->best_inliers;
+      delete(estim_views);
+      
+      
     }else{
+      EstimatedViews* estim_views = new EstimatedViews(data, camera_variables.points, correct_visible_points, eligibles[idx], correct_visible_points.size());
+      best_estimate.resize(estim_views->estim.size());
+      inlier_points.resize(visible_points.size());
+      best_estimate = estim_views->estim;
+      inlier_points = visible_points;
+      delete(estim_views);
+    }
+    Eigen::Matrix<double, 3, 4> camera;
+    if (best_estimate.size()==0) {
+      rejected_views(eligibles[idx]) = correct_visible_points.size();
+    }
+    else{
+      camera << best_estimate.segment<4>(0).transpose(),
+             best_estimate.segment<4>(4).transpose(),
+             best_estimate.segment<4>(8).transpose();
 
+      camera_variables.cameras.block<3, 4>(3 * eligibles[idx] - 3, 0) = camera;
+      inliers(eligibles[idx], inlier_points.array()) = true;
+      nums_added++;
+      last_path++;
+      camera_variables.pathway(last_path) = -eligibles[idx];
+      camera_variables.negative_pathway.conservativeResize(camera_variables.negative_pathway.size()+1);
+      camera_variables.negative_pathway(last_path-311) = eligibles[idx];
+      camera_variables.fixed[last_path] = inlier_points;
+      rejected_views(eligibles[idx]) = 0;
     }
     
   }
-  return 0;
+  return nums_added;
 }
 std::pair<Eigen::RowVectorXd ,std::vector<int>> FactorCompletion::search_eligible_views(Eigen::VectorXi thresholds,
                                              Eigen::VectorXi rejected_views) {
@@ -207,7 +251,7 @@ void FactorCompletion::check_expand_init(int num_points, int num_views) {
   assert(pathwayRef.rows() == 1 && "Initial pathway should be a row");
   assert(pathwayRef.size() == camera_variables.fixed.size());
 
-  last_path = pathwayRef.size();
+  last_path = pathwayRef.size()-1;
   int new_zeros_length = num_views + num_points - last_path;
 
   pathwayRef.conservativeResize(Eigen::NoChange,
