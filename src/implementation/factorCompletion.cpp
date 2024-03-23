@@ -74,8 +74,9 @@ void FactorCompletion::process() {
         if(number_of_added_views>0){
           number_of_known_views = number_of_known_views+number_of_added_views;
           level_points = std::max(1, level_points-1);
-          Refinement* refinement = new Refinement(data, camera_variables,init_refine, last_path, false,0 );
-          delete(refinement);
+          std::cout<<"where is my seg fault"<<std::endl;
+          Refinement refinement = Refinement(data, camera_variables,init_refine, last_path, false,0 );
+          break;
 
         }
 
@@ -136,7 +137,10 @@ int FactorCompletion::try_adding_views(std::vector<int> eligibles, int level_vie
              best_estimate.segment<4>(4).transpose(),
              best_estimate.segment<4>(8).transpose();
 
-      camera_variables.cameras.block<3, 4>(3 * eligibles[idx] - 3, 0) = camera;
+      camera_variables.cameras.block<3, 4>(3 * eligibles[idx], 0) = camera;
+
+
+      // std::cout<<camera_variables.cameras<<std::endl;
       inliers(eligibles[idx], inlier_points.array()) = true;
       nums_added++;
       last_path++;
