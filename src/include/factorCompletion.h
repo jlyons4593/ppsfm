@@ -28,6 +28,8 @@ public:
     
     std::pair<Eigen::RowVectorXd, std::vector<int>> search_eligible_views(Eigen::VectorXi thresholds, Eigen::VectorXi rejected_views);
 
+    Eigen::VectorXd search_eligible_points(int required_visible_eligibility, Eigen::VectorXi rejected_points);
+
     int try_adding_views(std::vector<int> eligibles, int level_views);
 };
 

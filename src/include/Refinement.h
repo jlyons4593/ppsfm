@@ -3,9 +3,13 @@
 class Refinement{
   private:
     DataStructures::SfMData data;
+    Eigen::Array<bool, Eigen::Dynamic, Eigen::Dynamic> visible;
     DataStructures::ComputedCameraPoints camera_variables;
+    void reestimate_all_points(Eigen::VectorXi pathway, Eigen::VectorXi idx_points);
+    void reestimate_all_views(Eigen::VectorXi pathway, Eigen::VectorXi idx_cameras);
   public:
-    Refinement(DataStructures::SfMData& data, DataStructures::ComputedCameraPoints& camera_variables , int init_refine, int last_path, bool start_cameras, int type);
+    
+    Refinement(DataStructures::SfMData& data, DataStructures::ComputedCameraPoints& camera, Eigen::Array<bool, Eigen::Dynamic, Eigen::Dynamic> inliers, int init_refine, int last_path, bool start_cameras, int type);
 
 
 };

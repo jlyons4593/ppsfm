@@ -18,7 +18,7 @@ struct ComputedCameraPoints {
   Eigen::RowVectorXi negative_pathway;
 
   // Find a way to remove the std::vector from this
-  Eigen::Array<std::variant<int, std::vector<int>, Eigen::VectorXi>, Eigen::Dynamic, 1> fixed;
+  std::vector<std::vector<int>> fixed;
 };
 
 inline void printColsRows(Eigen::MatrixXd matrix, std::string matrix_name) {

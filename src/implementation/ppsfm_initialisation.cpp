@@ -215,9 +215,9 @@ Initialisation::compute_cams(std::vector<int> initial_views,
     camera_points.positive_pathway(i) = initial_points[i];
   }
   camera_points.fixed.resize(initial_points.size() + 2);
-  camera_points.fixed[0] = initial_views[0];
-  camera_points.fixed[1] = initial_points[0];
-  camera_points.fixed[2] = initial_views[1];
+  camera_points.fixed[0] = std::vector<int>{initial_views[0]};
+  camera_points.fixed[1] = std::vector<int>{initial_points[0]};
+  camera_points.fixed[2] = std::vector<int>{initial_views[1]};
   std::vector<int> combinedPoints = {initial_points[0], initial_points[1]};
   camera_points.fixed[3] = combinedPoints;
 
@@ -279,6 +279,8 @@ Initialisation::compute_cams(std::vector<int> initial_views,
   // HACKY CONVERSION PLEASE FIX
   Eigen::Map<Eigen::VectorXi> temp_vector(pathway.data(), pathway.size());
   camera_points.pathway = temp_vector;
+  // std::cout<<camera_points.points.col(310)<<std::endl;
+  // std::cout<<camera_points.points.col(309)<<std::endl;
   // std::cout<<camera_points.path ay
   return camera_points;
 }
