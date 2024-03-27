@@ -7,6 +7,12 @@
 #include <limits>
 #include <vector>
 
+Eigen::MatrixXd Refinement::getCameras(){
+    return camera_variables.cameras;
+}
+Eigen::MatrixXd Refinement::getPoints(){
+    return camera_variables.points;
+}
 Refinement::Refinement(DataStructures::SfMData& data, DataStructures::ComputedCameraPoints& camera, Eigen::Array<bool, Eigen::Dynamic, Eigen::Dynamic> visible, int init_refine, int last_path, bool start_cameras, int type)
     :data(data), camera_variables(camera), visible(visible){
 
@@ -138,6 +144,7 @@ Refinement::Refinement(DataStructures::SfMData& data, DataStructures::ComputedCa
         // std::cout<<change_pts<<std::endl;
         iteration_number++;
     }
+    std::cout<<"refinement "<<iteration_number <<" iterations' "<<std::endl;
 
 }
     

@@ -1,9 +1,6 @@
 #include "dataStructures.hpp"
+#include "Helper.hpp"
 #pragma once
-struct InlierResults {
-    std::vector<int> inliers;
-    double score;
-};
 class EstimatedRobustViews{
   private:
 
@@ -11,7 +8,7 @@ class EstimatedRobustViews{
 DataStructures::SfMData data;
 DataStructures::ComputedCameraPoints camera_variables;
 
-InlierResults find_inliers(Eigen::MatrixXd estimation,Eigen::Vector3i idx_view, Eigen::VectorXi known_points);
+Helper::InlierResults find_inliers(Eigen::MatrixXd estimation,Eigen::Vector3i idx_view, Eigen::VectorXi known_points);
 
 std::pair<Eigen::VectorXd, Eigen::RowVectorXd> compute_reproj(Eigen::VectorXd estimation,Eigen::Vector3i idx_view, Eigen::VectorXi known_points);
 

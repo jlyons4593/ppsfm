@@ -26,10 +26,12 @@ set(SOURCE_FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/implementation/pairAffinityCalculator.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/implementation/factorCompletion.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/implementation/estimatedRobustViews.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/implementation/estimatedRobustPoints.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/implementation/estimatedViews.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/implementation/Helper.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/implementation/estimatedPoints.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/implementation/Refinement.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/implementation/diagnosis.cpp
 
     # List any other .cpp file here
 )

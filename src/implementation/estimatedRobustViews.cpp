@@ -41,7 +41,7 @@ EstimatedRobustViews::EstimatedRobustViews(DataStructures::SfMData& data, DataSt
         Eigen::MatrixXd temp = sys*estim ;
         double threshold = temp.norm()/std::sqrt(sys.rows());
         if (estim.size()>0 && threshold<= Options::SYSTEM_THRESHOLD){
-            InlierResults result = find_inliers(estim,idx_view, known_points);
+            Helper::InlierResults result = find_inliers(estim,idx_view, known_points);
 
             if (result.inliers.size() >= Options::MINIMAL_VIEW[level] && result.score< 7 * best_score) {
                 Eigen::VectorXi known_points_subset(result.inliers.size());
@@ -122,9 +122,9 @@ std::pair<Eigen::VectorXd, Eigen::RowVectorXd> EstimatedRobustViews::compute_rep
     return {reproj_err_final,depths};
 }
 
-InlierResults EstimatedRobustViews::find_inliers(Eigen::MatrixXd estimation,Eigen::Vector3i idx_view, Eigen::VectorXi known_points){
+Helper::InlierResults EstimatedRobustViews::find_inliers(Eigen::MatrixXd estimation,Eigen::Vector3i idx_view, Eigen::VectorXi known_points){
 
-    InlierResults results;
+    Helper::InlierResults results;
 
     std::pair<Eigen::VectorXd, Eigen::RowVectorXd> reproj = compute_reproj(estimation, idx_view, known_points);
 
@@ -144,34 +144,3 @@ InlierResults EstimatedRobustViews::find_inliers(Eigen::MatrixXd estimation,Eige
     return results;
 }
 
-    // // Find inliers
-    // for(int i = 0; i < reproj_errs.size(); ++i) {
-    //     if(reproj_errs[i] <= threshold) {
-    //         results.inliers.push_back(i);
-    //     }
-    // }
-    //
-    // // Sort inliers if requested
-    // if(sort_inliers) {
-    //     std::sort(results.inliers.begin(), results.inliers.end(), [&reproj_errs](int a, int b) {
-    //         return reproj_errs[a] < reproj_errs[b];
-    //     });
-    // }
-    //
-    // // Calculate score
-    // results.score = 0.0;
-    // for(auto idx : results.inliers) {
-    //     results.score += reproj_errs[idx];
-    // }
-    // results.score += (idx_points.size() - results.inliers.size()) * threshold;
-    //
-    // // Filter reproj_errs for inliers
-    // // Eigen::VectorXd filtered_reproj_errs(results.inliers.size());
-    // // for(size_t i = 0; i < results.inliers.size(); ++i) {
-    // //     filtered_reproj_errs[i] = reproj_errs[results.inliers[i]];
-    // // }
-    // // results.reproj_errs = filtered_reproj_errs;
-    // //
-    // return results;
-//     return results;
-// }
