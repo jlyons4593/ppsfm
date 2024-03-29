@@ -20,28 +20,35 @@ EstimatedRobustViews::EstimatedRobustViews(DataStructures::SfMData& data, DataSt
     int max_iterations = Options::MAX_ITERATION_ROBUST(1);
 
 
+    // std::cout<<"Robust Loop Entry "<<std::endl;
     //Main work loop
     // while (iteration_number<=0){
-    while (iteration_number<=max_iterations){
+    while (iteration_number<max_iterations){
+        // std::cout<<"Iter num: "<< iteration_number<<std::endl;
         Eigen::VectorXi subset = Helper::random_subset(known_points, num_rejected, Options::MINIMAL_VIEW(level));
 
-        iteration_number++;
         
         Eigen::VectorXi subset_points(subset.size());
         for(int i =0; i<subset.size(); i++){
             subset_points(i) = known_points(subset(i));
         }
-
-        EstimatedViews* estim_views = new EstimatedViews(data, camera_variables.points, subset_points, new_view, 6);
-        Eigen::VectorXd estim = estim_views->estim;
-        Eigen::MatrixXd sys= estim_views->sys;
-        delete(estim_views);
-        
-
+        // std::cout<<"pre estim views"<<std::endl<<std::endl;
+        // std::cout<< subset_points<<std::endl<<std::endl;
+        // std::cout<<"known_points"<<std::endl<<std::endl;
+        // std::cout<< known_points<<std::endl<<std::endl;
+        // std::cout<< new_view<<std::endl<<std::endl;
+        EstimatedViews estim_views = EstimatedViews(data, camera_variables.points, subset_points, new_view, 6);
+        // std::cout<<"post estim views"<<std::endl;
+        Eigen::VectorXd estim = estim_views.estim;
+        Eigen::MatrixXd sys= estim_views.sys;
         Eigen::MatrixXd temp = sys*estim ;
+        // std::cout<<"estim vars set"<<std::endl;
+
         double threshold = temp.norm()/std::sqrt(sys.rows());
         if (estim.size()>0 && threshold<= Options::SYSTEM_THRESHOLD){
+            // std::cout<<"pre find Inlier "<<std::endl;
             Helper::InlierResults result = find_inliers(estim,idx_view, known_points);
+            // std::cout<<"postfind Inlier "<<std::endl;
 
             if (result.inliers.size() >= Options::MINIMAL_VIEW[level] && result.score< 7 * best_score) {
                 Eigen::VectorXi known_points_subset(result.inliers.size());
@@ -49,11 +56,11 @@ EstimatedRobustViews::EstimatedRobustViews(DataStructures::SfMData& data, DataSt
                     known_points_subset(i) = known_points(result.inliers[i]);
                 }
 
-                EstimatedViews* estim_views2 = new EstimatedViews(data, camera_variables.points, known_points_subset, new_view, result.inliers.size());
+                EstimatedViews estim_views2 = EstimatedViews(data, camera_variables.points, known_points_subset, new_view, result.inliers.size());
 
-                Eigen::VectorXd estim2 = estim_views2->estim;
-                Eigen::MatrixXd sys2 = estim_views2->sys;
-                delete(estim_views2);
+                Eigen::VectorXd estim2 = estim_views2.estim;
+                Eigen::MatrixXd sys2 = estim_views2.sys;
+                // delete(estim_views2);
 
                 Eigen::MatrixXd temp2 = sys2*estim2 ;
                 double threshold2 = temp2.norm()/std::sqrt(sys2.rows());
@@ -74,12 +81,9 @@ EstimatedRobustViews::EstimatedRobustViews(DataStructures::SfMData& data, DataSt
                 }
             }
         }
+        // std::cout<<max_iterations<<std::endl;
         iteration_number= iteration_number+1;
     }
-    // std::cout<<"best_inliers:"<<std::endl;
-    // std::cout<<best_inliers<<std::endl;
-    // std::cout<<"best_estimate:"<<std::endl;
-    // std::cout<<best_estimate<<std::endl;
     std::cout<<"best_score:"<<std::endl;
     std::cout<<best_score<<std::endl;
 }

@@ -1,5 +1,6 @@
 #include "ppsfm_initialisation.h"
 #include "logger.h"
+#include <exception>
 #include <iostream>
 
 void Initialisation::process() {
@@ -151,6 +152,8 @@ Initialisation::compute_cams(std::vector<int> initial_views,
   Eigen::Vector3i second_view(3 * initial_views[1], 3 * initial_views[1] + 1,
                               3 * initial_views[1] + 2);
 
+  // std::cout<<"fundamental matrix"<<std::endl;
+  // std::cout<<fundamental_matrix<<std::endl;
   Eigen::JacobiSVD<Eigen::MatrixXd> svd(fundamental_matrix,
                                         Eigen::ComputeFullV);
   Eigen::MatrixXd V = svd.matrixV();
@@ -217,7 +220,12 @@ Initialisation::compute_cams(std::vector<int> initial_views,
   camera_points.fixed.resize(initial_points.size() + 2);
   camera_points.fixed[0] = std::vector<int>{initial_views[0]};
   camera_points.fixed[1] = std::vector<int>{initial_points[0]};
-  camera_points.fixed[2] = std::vector<int>{initial_views[1]};
+  // std::cout<< initial_points[0]<<std::endl;
+  // throw std::exception();
+  camera_points.fixed[2] = std::vector<int>{initial_views[0]};
+  // std::cout<< initial_views[1]<<std::endl;
+  // throw std::exception();
+
   std::vector<int> combinedPoints = {initial_points[0], initial_points[1]};
   camera_points.fixed[3] = combinedPoints;
 
@@ -259,6 +267,7 @@ Initialisation::compute_cams(std::vector<int> initial_views,
   // Perform element-wise multiplication
   scaled_measurement =
       scaled_measurement.array() * adjusted_proj_depths.array();
+
   Eigen::JacobiSVD<Eigen::MatrixXd> scaled_svd(
       scaled_measurement, Eigen::ComputeFullV | Eigen::ComputeThinU);
 
@@ -267,6 +276,12 @@ Initialisation::compute_cams(std::vector<int> initial_views,
   Eigen::MatrixXd scaled_S = scaled_svd.singularValues().asDiagonal();
   Eigen::MatrixXd scaled_V = scaled_svd.matrixV();
 
+  // std::cout<<"Scaled U"<<std::endl;
+  // std::cout<<scaled_U<<std::endl;
+  // std::cout<<"Scaled S"<<std::endl;
+  // std::cout<<scaled_S<<std::endl;
+  // std::cout<<"Scaled V"<<std::endl;
+  // std::cout<<scaled_V<<std::endl;
   Eigen::VectorXd sqrt_singularValues =
       scaled_svd.singularValues().array().sqrt();
 

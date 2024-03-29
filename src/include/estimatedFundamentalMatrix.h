@@ -18,7 +18,7 @@ private:
 
   std::vector<int> get_random_sequence(int number_of_projections);
 
-  Eigen::MatrixXd estimate(Eigen::MatrixXd coeffs, bool enforce_rank);
+  std::pair<Eigen::MatrixXd,Eigen::VectorXd> estimate(Eigen::MatrixXd coeffs, bool enforce_rank);
 
   std::pair<Eigen::MatrixXd, Eigen::Array<bool, Eigen::Dynamic, 1>>
   estimateRansac(Eigen::MatrixXd coeffs, double confidence, int max_iter,
@@ -52,5 +52,24 @@ public:
 
     fundamental_matrix = fund_mat_inliers.first;
     inliers = fund_mat_inliers.second;
+    Eigen::JacobiSVD<Eigen::MatrixXd> svd(fundamental_matrix, Eigen::ComputeFullU | Eigen::ComputeFullV);
+    // Get the left singular vectors (U matrix)
+    Eigen::MatrixXd U = svd.matrixU();
+
+    // Get the singular values (diagonal of S matrix)
+    Eigen::VectorXd S = svd.singularValues();
+
+    // Get the right singular vectors (V matrix)
+    Eigen::MatrixXd V = svd.matrixV();
+
+    // Slice the matrices to get the first two columns/rows
+    Eigen::MatrixXd U_slice = U.leftCols(2);
+    Eigen::MatrixXd S_slice = S.head(2).asDiagonal();
+    Eigen::MatrixXd V_slice = V.leftCols(2);
+
+    // Reconstruct the rank-2 fundamental matrix
+    Eigen::MatrixXd fund_mat_rank2 = U_slice * S_slice * V_slice.transpose();
+    fundamental_matrix = fund_mat_rank2.transpose();
+    // std::cout<<fundamental_matrix<<std::endl;
   }
 };

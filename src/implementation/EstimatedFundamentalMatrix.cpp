@@ -1,4 +1,5 @@
 #include "estimatedFundamentalMatrix.h"
+#include "dataStructures.hpp"
 
 Eigen::VectorXd EstimatedFundamentalMatrix::linvec(const Eigen::VectorXd& a, const Eigen::VectorXd& b) {
     Eigen::VectorXd v(9); // Initialize a vector of size 9
@@ -31,20 +32,24 @@ std::vector<int> EstimatedFundamentalMatrix::get_random_sequence(int number_of_p
     return test_set;
 }
 
-    Eigen::MatrixXd EstimatedFundamentalMatrix::estimate(Eigen::MatrixXd coeffs, bool enforce_rank){
+std::pair<Eigen::MatrixXd, Eigen::VectorXd> EstimatedFundamentalMatrix::estimate(Eigen::MatrixXd coeffs, bool enforce_rank){
         // Using jacobi SVD as faster for smaller problems
         // Possible performance improvement if I can utilise this as a thin V instead of a full V as will use less compute but will become inconsistent with matlab
         Eigen::JacobiSVD<Eigen::MatrixXd> svd(coeffs, Eigen::ComputeFullV);
 
         // Getting the V value
         Eigen::MatrixXd fun_vec = svd.matrixV();
+        
 
         // Assuming the last column of fun_vec is what we want to reshape into fun_mat
         Eigen::VectorXd last_col = fun_vec.col(fun_vec.cols()-1);
+        // Adding a minus fixes the guessing values not sure why
+        last_col = -last_col.array();
 
         Eigen::MatrixXd fun_mat = last_col.reshaped(3,3);
 
         if(enforce_rank){
+            // std::cout<<"test"<<std::endl;
             Eigen::JacobiSVD<Eigen::MatrixXd> svd(fun_mat, Eigen::ComputeFullU | Eigen::ComputeFullV);
             Eigen::MatrixXd U = svd.matrixU();
             Eigen::MatrixXd V = svd.matrixV();
@@ -61,7 +66,7 @@ std::vector<int> EstimatedFundamentalMatrix::get_random_sequence(int number_of_p
 
             fun_mat = U * S_modified * V.transpose();
         }
-        return fun_mat;
+        return {fun_mat, last_col};
         // DataStructures::printColsRows(fun_mat, "fundamental_matrix");
     }
 
@@ -81,9 +86,10 @@ std::vector<int> EstimatedFundamentalMatrix::get_random_sequence(int number_of_p
             for (size_t i = 0; i < test_set.size(); ++i) {
                 coeff_block.row(i) = coeffs.row(test_set[i]);
             }
-            Eigen::MatrixXd estimation = estimate(coeff_block,false);
+            std::pair<Eigen::MatrixXd, Eigen::VectorXd> estimations = estimate(coeff_block,false);
 
-            Eigen::VectorXd estimationVec = Eigen::Map<Eigen::VectorXd>(estimation.data(), estimation.size());
+            Eigen::MatrixXd estimation = estimations.first;
+            Eigen::VectorXd estimationVec = estimations.second;
             Eigen::VectorXd product = coeff_block * estimationVec;
 
             if ((product.norm() / std::sqrt(8)) < dist_thresh) {
@@ -106,12 +112,23 @@ std::vector<int> EstimatedFundamentalMatrix::get_random_sequence(int number_of_p
                             trueIndices.push_back(i);
                         }
                     }
+                    // for (auto i: trueIndices){
+                    //     std::cout<<i<<std::endl;
+                    // }
 
                     Eigen::MatrixXd block(trueIndices.size(), coeffs.cols());
                     for (size_t i = 0; i < trueIndices.size(); ++i) {
                         block.row(i) = coeffs.row(trueIndices[i]);
                     }
-                    estimation = estimate(block, false);
+
+                    // std::cout<<"block"<<std::endl;
+                    //     std::cout<<block<<std::endl;
+                    // estimation = estimate(block, false);
+            std::pair<Eigen::MatrixXd, Eigen::VectorXd> estimations = estimate(block,false);
+             estimation = estimations.first;
+             estimationVec = estimations.second;
+
+                    // std::cout<<estimation<<std::endl;
                     errors = (block * estimationVec).array().square();
                     score = 0.0;
                     inlier_count=0;
@@ -136,6 +153,8 @@ std::vector<int> EstimatedFundamentalMatrix::get_random_sequence(int number_of_p
             }
             number_iterator++;
         }
+
+        // std::cout<<best_estim<<std::endl;
         return {best_estim, best_inliers};
     }
 
