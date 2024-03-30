@@ -13,8 +13,6 @@ private:
   std::pair<Eigen::RowVectorXi, Eigen::RowVectorXi>
   visibleCell(Eigen::MatrixXd projections);
 
-  void addProjections(const Eigen::MatrixXd projections);
-  void removeProjections(const Eigen::MatrixXi &projs);
 
   Eigen::MatrixXi downsampleAndCombine(const Eigen::MatrixXi &visibility);
 
@@ -25,5 +23,7 @@ public:
       int image_width, int image_height, int score_level = -1,
       const Eigen::MatrixXd &projections = Eigen::MatrixXd());
 
+  void addProjections(const Eigen::MatrixXd projections);
+  void removeProjections(const Eigen::MatrixXi &projs);
   double computeScore(bool normalized = false);
 };

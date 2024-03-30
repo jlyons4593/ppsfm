@@ -127,13 +127,10 @@ void FactorCompletion::process() {
 // std::cout<<camera_variables.cameras.col(0)<<std::endl;
 //   throw std::exception();
       std::pair<int, Eigen::VectorXi>added_vars =  try_adding_points(eligible_points, level_views);
-        std::cout<<"iut of try adding pts"<<std::endl;
       number_of_added_points = added_vars.first;
       Eigen::VectorXi added= added_vars.second;
-        std::cout<<"vars retreaved"<<std::endl;
 
       if(number_of_added_points>0){
-        std::cout<<"into nex if"<<std::endl;
         
         number_of_known_points = number_of_known_points+ number_of_added_points;
         update_pvs(eligible_points(added));
@@ -172,15 +169,34 @@ void FactorCompletion::process() {
   std::cout<<"refinement count: "<<refinement_count<<std::endl;
 }
 void FactorCompletion::update_pvs(Eigen::VectorXi added_points){
-  std::cout<<"updating"<<std::endl;
   // Eigen::MatrixXd visible_added(data.visible.rows(), added_points.size());
   Eigen::MatrixXd visible_added = data.visible(Eigen::all, added_points);
 
   // Calculate the sum along columns and check if each sum is greater than zero
   Eigen::VectorXi affected_views = (visible_added.colwise().sum().array() > 0).cast<int>();
-  std::cout<<"yessir"<<std::endl;
-  throw std::exception();
-
+//
+//Contiune From Here
+    for (int i = 0; i < affected_views.size(); ++i) {
+        if (affected_views(i) == 1) {
+          Eigen::VectorXi visible_points(added_points.size());
+          for(int j=0; j<added_points.size(); j++){
+            visible_points(j) =data.visible(affected_views(i),added_points(j));
+          }
+          Eigen::VectorXi visible_added((visible_points.array()>0).count());
+          int count=0;
+          for(int j =0; j<visible_points.size(); j++){
+            if (visible_points(j)){
+              visible_added(count) = added_points(j);
+                count++;
+            }
+          }
+          Eigen::MatrixXd projections(2,visible_added.size());
+          for(int j= 0; j<visible_added.size(); j++){
+            projections.col(j) = data.image_measurements.block(affected_views(i)*3,added_points(i), 2,1);
+          }
+          pvs_scores[affected_views(i)]->addProjections(projections);
+        }
+    }
 }
 
 
