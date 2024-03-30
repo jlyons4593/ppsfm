@@ -6,6 +6,7 @@ namespace Helper{
 struct InlierResults {
     std::vector<int> inliers;
     double score;
+    Eigen::VectorXd reproj_errors;
 };
 
 

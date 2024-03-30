@@ -28,6 +28,7 @@ const double MIN_CHANGE_FINAL_REFINE = 1e-4;
 const double MIN_CHANGE_GLOBAL_REFINE = 3e-4;
 const Eigen::Vector2i MAX_ITERATION_ROBUST(500,1000);
 const Eigen::Vector<int, 9> MINIMAL_VIEW{10, 10, 9, 9, 9, 8, 8, 8, 7};
+const Eigen::Vector<int, 9> MINIMAL_POINT{4, 4, 4, 3, 3, 3, 3, 3, 2};
 const bool LOG_TIMER = true;
 inline Eigen::MatrixXi get_eligibility_view() {
   if (eligibility_view.size() > 0) {

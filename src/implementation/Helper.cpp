@@ -31,17 +31,12 @@ namespace Helper{
 
             return test_set;
         } else {
-            int n = complete_set.size();
-            std::random_device rd;
-            std::mt19937 gen(rd());
-
             Eigen::VectorXi indices = Eigen::VectorXi::LinSpaced(n, 0, n - 1);
+
             std::shuffle(indices.data(), indices.data() + n, gen);
 
-            Eigen::VectorXi test_set(num_sample);
-            test_set.head(num_sample) = indices.head(num_sample);
-
-            return test_set;
+            // Take the first num_sample elements as the test set
+            return indices.head(num_sample);
         }
     }
 

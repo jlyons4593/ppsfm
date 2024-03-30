@@ -20,6 +20,8 @@ public:
     DataStructures::ComputedCameraPoints camera_variables,
     DataStructures::ViewpairAffinity pair_affinity, Eigen::MatrixXd image_sizes, Eigen::MatrixXd centers): data(data), camera_variables(camera_variables), pair_affinity(pair_affinity), image_sizes(image_sizes), centers(centers) {}
 
+    void update_pvs(Eigen::VectorXi added_points);
+
     void process();
 
     void check_expand_init(int num_points, int num_views);
