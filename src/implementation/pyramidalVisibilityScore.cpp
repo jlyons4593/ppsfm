@@ -77,7 +77,6 @@ PyramidalVisibilityScore::PyramidalVisibilityScore(int image_width, int image_he
                 proj_count(idx_height(i), idx_width(i))++;
             }
         }
-        // std::cout<<proj_count<<std::endl;
     }
 
     void PyramidalVisibilityScore::removeProjections(const Eigen::MatrixXi& projs) {

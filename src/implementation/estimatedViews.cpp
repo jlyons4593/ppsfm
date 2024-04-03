@@ -1,6 +1,7 @@
 #include "estimatedViews.h"
 #include "dataStructures.hpp"
 #include "options.h"
+#include <exception>
 #include <iostream>
 
 EstimatedViews::EstimatedViews(DataStructures::SfMData data,Eigen::MatrixXd points, Eigen::VectorXi index_points,int new_view, int num_fixed){
@@ -27,11 +28,11 @@ EstimatedViews::EstimatedViews(DataStructures::SfMData data,Eigen::MatrixXd poin
 
 
     for (int i = 0; i < num_points; ++i) {
-
         Eigen::Vector3i point_idx(3*index_points(i), 3*index_points(i)+1, 3*index_points(i)+2);
         g.block<1, 4>(0, 0) = points.col(index_points[i]);
         g.block<1, 4>(1, 4) = points.col(index_points[i]);
         g.block<1, 4>(2, 8) = points.col(index_points[i]);
+        // std::cout<<g<<std::endl;
     
         // look for a way to speed this up
         Eigen::Matrix<double, 2, 3> selected_data;
@@ -59,10 +60,8 @@ EstimatedViews::EstimatedViews(DataStructures::SfMData data,Eigen::MatrixXd poin
     // std::cout<<b<<std::endl;
     // Perform QR decomposition with column pivoting
     // Using ColPivHouseHolder which is more similar but doesnt provide the economy option that householder provides
-    Eigen::ColPivHouseholderQR<Eigen::MatrixXd> qr(A);
-    // Eigen::HouseholderQR<Eigen::MatrixXd> qr(A);
 
-
+    // Eigen::ColPivHouseholderQR<Eigen::MatrixXd> qr(A);
     // Eigen::MatrixXd QR = qr.matrixQR();
     // auto end = std::chrono::high_resolution_clock::now();
     // bool timer = true;
@@ -71,14 +70,25 @@ EstimatedViews::EstimatedViews(DataStructures::SfMData data,Eigen::MatrixXd poin
     //     std::cout << "Loop execution in " << duration.count() << " milliseconds" << std::endl;
     // }
 
+    // Eigen::ColPivHouseholderQR<Eigen::MatrixXd> qr(A);
     // THis line is till very slow
-    Eigen::MatrixXd Q_full = qr.matrixQ();
-    // std::cout<<Q_full<<std::endl;
-    // throw std::exception();
+    // Eigen::ColPivHouseholderQR<Eigen::MatrixXd> qr(A);
+    // Eigen::MatrixXd Q = qr.matrixQ();
+    // Eigen::MatrixXd R = qr.matrixR().topLeftCorner(A.cols(), A.cols()).triangularView<Eigen::Upper>();
+    // Eigen::VectorXi p = qr.colsPermutation().indices();
+    // Eigen::MatrixXd Q = Q_full.leftCols(A.cols());
+    // DataStructures::printColsRows(Q, "Q");
 
+    // Faster version using householderQ
+    Eigen::ColPivHouseholderQR<Eigen::MatrixXd> qr(A);
+    Eigen::MatrixXd QR = qr.matrixQR();
     Eigen::MatrixXd R = qr.matrixR().topLeftCorner(A.cols(), A.cols()).triangularView<Eigen::Upper>();
     Eigen::VectorXi p = qr.colsPermutation().indices();
-    Eigen::MatrixXd Q = Q_full.leftCols(A.cols());
+    // Eigen::MatrixXd Q = Q_full.leftCols(A.cols());
+    // DataStructures::printColsRows(Q, "Q");
+    Eigen::MatrixXd thinQ(Eigen::MatrixXd::Identity(A.rows(),A.cols()));
+    thinQ = qr.householderQ()*thinQ;
+        // Eigen::MatrixXd d = thinQ.transpose()*b;
 
 
     bool hasSmallDiagonalElement = false;
@@ -92,7 +102,14 @@ EstimatedViews::EstimatedViews(DataStructures::SfMData data,Eigen::MatrixXd poin
         Eigen::VectorXd estimation; 
     }
     else{
-        Eigen::MatrixXd d = Q.transpose()*b;
+        Eigen::MatrixXd d = thinQ.transpose()*b;
+        // Eigen::MatrixXd d = Q.transpose()*b;
+    auto end = std::chrono::high_resolution_clock::now();
+    // bool timer = true;
+    // if (timer) {
+    //     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    //     std::cout << "Loop execution in " << duration.count() << " milliseconds" << std::endl;
+    // }
         Eigen::MatrixXd x = R.triangularView<Eigen::Upper>().solve(d);
         // std::cout<<p<<std::endl;
         // std::cout<<x<<std::endl;

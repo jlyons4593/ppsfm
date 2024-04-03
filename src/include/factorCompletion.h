@@ -28,8 +28,8 @@ public:
 
     void init_pvs(int num_views);
     
-    std::pair<Eigen::RowVectorXd, std::vector<int>> search_eligible_views(Eigen::VectorXi thresholds, Eigen::VectorXi rejected_views);
 
+    std::pair<Eigen::RowVectorXd ,std::vector<int>> search_eligible_views(Eigen::VectorXi thresholds,Eigen::VectorXi rejected_views,int iter ) ;
     Eigen::VectorXi search_eligible_points(int required_visible_eligibility, Eigen::VectorXi rejected_points, int iter);
 
     int try_adding_views(std::vector<int> eligibles, int level_views);

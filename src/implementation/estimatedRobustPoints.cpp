@@ -12,7 +12,7 @@
 #include "options.h"
 
 EstimatedRobustPoints::EstimatedRobustPoints(DataStructures::SfMData& data, DataStructures::ComputedCameraPoints& camera_variables, Eigen::VectorXi& known_views, int new_point, int num_rejected, int level): data(data), camera_variables(camera_variables){
-    std::cout<<"est rob points"<<std::endl;
+    // std::cout<<"est rob points"<<std::endl;
 
     
     int num_known_views = known_views.size();
@@ -20,7 +20,6 @@ EstimatedRobustPoints::EstimatedRobustPoints(DataStructures::SfMData& data, Data
     denorm_cams.setConstant(std::numeric_limits<double>::quiet_NaN());
 
     for(int j=0; j<known_views.size(); j++){
-        std::cout<<j<<std::endl;
         Eigen::MatrixXd normalisation_block = data.normalisations.block(known_views(j)*3,0,3,data.normalisations.cols());
         Eigen::MatrixXd cameras_block = camera_variables.cameras.block(known_views(j)*3,0,3,camera_variables.cameras.cols());
         denorm_cams.block(3 * j, 0, 3, 4) = normalisation_block.colPivHouseholderQr().solve(cameras_block);
@@ -47,7 +46,7 @@ EstimatedRobustPoints::EstimatedRobustPoints(DataStructures::SfMData& data, Data
     best_inliers = Eigen::VectorXi::Zero(known_views.size());
     int iteration_number = 0;
     int max_iterations = Options::MAX_ITERATION_ROBUST(1);
-    std::cout<<"Loop entry"<<std::endl;
+    // std::cout<<"Loop entry"<<std::endl;
 
 
     //Main work loop
@@ -72,7 +71,7 @@ EstimatedRobustPoints::EstimatedRobustPoints(DataStructures::SfMData& data, Data
         if (estim.size()>0 && threshold<= Options::SYSTEM_THRESHOLD){
             // std::cout<< "before inlier"<<std::endl;
             Helper::InlierResults result = find_inliers(estim ,denorm_cams, idx_views, new_point);
-            std::cout<<"inliers"<<std::endl;
+            // std::cout<<"inliers"<<std::endl;
             // throw std::exception();
             // std::cout<<"after inlier"<<std::endl
 
@@ -94,10 +93,8 @@ EstimatedRobustPoints::EstimatedRobustPoints(DataStructures::SfMData& data, Data
 
                 Eigen::MatrixXd temp2 = sys2*estim2 ;
                 double threshold2 = temp2.norm()/std::sqrt(sys2.rows());
-                // std::cout<<"yup5"<<std::endl;
 
                 if (estim2.size()>0 && threshold2<= Options::SYSTEM_THRESHOLD){
-                    // std::cout<<"made it"<<std::endl;
                     double score = computeScore(estim2, denorm_cams,  idx_views, new_point, result.inliers);
                     if(score<best_score){
                         best_score = score;
@@ -178,10 +175,10 @@ Helper::InlierResults EstimatedRobustPoints::find_inliers(Eigen::VectorXd& estim
     std::pair<Eigen::VectorXd, Eigen::RowVectorXd> reproj = compute_reproj(estimation, idx_view, cameras, new_point);
 
     Eigen::VectorXd reproj_errs = reproj.first;
-    std::cout<<"reprojection errors"<<std::endl;
-    std::cout<<reproj_errs<<std::endl;
+    // std::cout<<"reprojection errors"<<std::endl;
+    // std::cout<<reproj_errs<<std::endl;
     Eigen::VectorXd inliers = (reproj_errs.array() <= Options::OUTLIER_THRESHOLD).cast<double>();
-    std::cout<<inliers<<std::endl;
+    // std::cout<<inliers<<std::endl;
     std::vector<int> inliers_indices;
 
     for (int i = 0; i < inliers.size(); ++i) {

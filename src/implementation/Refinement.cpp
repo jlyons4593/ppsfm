@@ -16,15 +16,21 @@ Eigen::MatrixXd Refinement::getCameras(){
 Eigen::MatrixXd Refinement::getPoints(){
     return camera_variables.points;
 }
-Refinement::Refinement(DataStructures::SfMData& data, DataStructures::ComputedCameraPoints& camera, Eigen::Array<bool, Eigen::Dynamic, Eigen::Dynamic> visible, int init_refine, int last_path, bool start_cameras, int type)
-    :data(data), camera_variables(camera), visible(visible){
+Refinement::Refinement(DataStructures::SfMData& data, DataStructures::ComputedCameraPoints& camera, Eigen::Array<bool, Eigen::Dynamic, Eigen::Dynamic> visible,Eigen::VectorXi pathway_segment,std::vector<std::vector<int>> new_fixed,    bool start_cameras, int type)
+    :data(data), camera_variables(camera), visible(visible),pathway_segment(pathway_segment){
 
-    // std::cout<<visible.col(0)<<std::endl;
-        
-    Eigen::VectorXi pathway_segment = camera_variables.pathway.segment(init_refine-1, last_path+1 );
-
-    std::vector<std::vector<int>> fixed;
-    fixed.assign(std::next(camera_variables.fixed.begin(), init_refine - 1), std::next(camera_variables.fixed.begin(), last_path+1));
+        fixed = new_fixed;
+        // camera_variables.pathway.segment(init_refine,last_path - init_refine)
+    //
+    // std::cout<<"init refine"<<std::endl;
+    // std::cout<<init_refine<<std::endl;
+    // std::cout<<"last path"<<std::endl;
+    // std::cout<<last_path<<std::endl;
+    //
+    
+    // fixed.assign(std::next(camera_variables.fixed.begin(), init_refine),
+    //            std::next(camera_variables.fixed.begin(), last_path));
+    // std::cout<<"yup1"<<std::endl;
 
     int max_iter;
     double min_change;
@@ -40,9 +46,11 @@ Refinement::Refinement(DataStructures::SfMData& data, DataStructures::ComputedCa
         max_iter = Options::MAX_ITERATION_REFINEMENT;
         min_change = Options::MIN_CHANGE_LOCAL_REFINEMENT;
     }
-    Eigen::VectorXi idx_points(camera_variables.positive_pathway.size());  
-    // std::cout<<camera_variables.negative_pathway<<std::endl;
-    Eigen::VectorXi idx_cameras(camera_variables.negative_pathway.size()); 
+    // std::cout<<"yup2"<<std::endl;
+    Eigen::VectorXi idx_points((pathway_segment.array()>0).count());  
+    // std::cout<<"pathway segment"<<std::endl;
+    // std::cout<<pathway_segment.array()<<std::endl;
+    Eigen::VectorXi idx_cameras((pathway_segment.array()<0).count()); 
     int camera_count =0;
     int point_count =0;
     for(int i =0; i<pathway_segment.size();i++){
@@ -50,10 +58,13 @@ Refinement::Refinement(DataStructures::SfMData& data, DataStructures::ComputedCa
             idx_cameras(camera_count) = i;
             camera_count++;
         }else{
+            
             idx_points(point_count) = i;
             point_count++;
         }
+        // std::cout<<i<<std::endl;
     }
+    // std::cout<<"yessir1"<<std::endl;
 
     Eigen::VectorXi selected_pathway = pathway_segment(idx_cameras);
     Eigen::VectorXi negated_scaled_pathway = selected_pathway * -3;
@@ -72,7 +83,20 @@ Refinement::Refinement(DataStructures::SfMData& data, DataStructures::ComputedCa
     for (int i =0; i<visible.cols(); i++){
         rowSize.push_back(i);
     }
-    Eigen::VectorXi positive_path = camera_variables.positive_pathway;
+
+    std::vector<int> positiveValues;
+    std::copy_if(pathway_segment.data(), pathway_segment.data() + pathway_segment.size(), std::back_inserter(positiveValues),
+                 [](int value) { return value > 0; });
+    // Now create a new Eigen vector from the std::vector of positive values
+    Eigen::Map<Eigen::VectorXi> positive_path(positiveValues.data(), positiveValues.size());
+    std::vector<int> negativeValues;
+    std::copy_if(pathway_segment.data(), pathway_segment.data() + pathway_segment.size(), std::back_inserter(negativeValues),
+                 [](int value) { return value < 0; });
+
+    // Now create a new Eigen vector from the std::vector of positive values
+    Eigen::Map<Eigen::VectorXi> negative_path(positiveValues.data(), positiveValues.size());
+    positive_path =positive_path.array()-1;
+    negative_path= -(negative_path.array()) -1;
 
     std::sort(rowSize.begin(), rowSize.end());
     std::sort(positive_path.begin(), positive_path.end());
@@ -91,9 +115,8 @@ Refinement::Refinement(DataStructures::SfMData& data, DataStructures::ComputedCa
         colSize.push_back(i); 
     }
 
-
     std::vector<int> diff2;
-    std::set_difference(colSize.begin(), colSize.end(), camera_variables.negative_pathway.begin(), camera_variables.negative_pathway.end(), std::back_inserter(diff2));
+    std::set_difference(colSize.begin(), colSize.end(), negative_path.begin(), negative_path.end(), std::back_inserter(diff2));
     for(int i=0; i<diff2.size(); i++){
         visible.row(diff2[i]).array() = 0;
     }
@@ -103,7 +126,6 @@ Refinement::Refinement(DataStructures::SfMData& data, DataStructures::ComputedCa
     int iteration_number=0;
     double change_cameras =std::numeric_limits<double>::infinity();
     double change_points =std::numeric_limits<double>::infinity();
-    // std::cout<<positive_path<<std::endl;
 
     // Optional timer later
     auto start = std::chrono::high_resolution_clock::now();
@@ -123,36 +145,12 @@ Refinement::Refinement(DataStructures::SfMData& data, DataStructures::ComputedCa
         }
 
         if(start_cameras){
-            reestimate_all_views(pathway_segment, idx_cameras);
-            reestimate_all_points(pathway_segment, idx_points);
+            reestimate_all_views(pathway_segment, idx_cameras, fixed);
+            reestimate_all_points(pathway_segment, idx_points, fixed);
         }
         else{
-            // std::cout<<"Iteration Number"<<iteration_number<<std::endl;
-            reestimate_all_points(pathway_segment, idx_points);
-
-
-            Eigen::MatrixXd known_points(camera_variables.points.rows(), positive_path.size());
-            for(int i=0; i<positive_path.size(); i++){
-                known_points.col(i) = camera_variables.points.col(positive_path(i));
-            }
-            // std::cout<<"old pooints"<<std::endl;
-            // std::cout<<old_points.col(0)<<std::endl;
-            // std::cout<<"camera var points"<<std::endl;
-            // std::cout<<camera_variables.points.col(0)<<std::endl;
-        // Eigen::MatrixXd diff_points = old_points - known_points;
-        // // std::cout<<diff_points.col()<<std::endl;
-        // double norm_diff_points = diff_points.norm();
-        // std::cout<<"norm diff points"<<std::endl;
-        // std::cout<<norm_diff_points<<std::endl;
-        // int numel_old_points = old_points.size();
-        // double sqrt_numel_points = std::sqrt(numel_old_points);
-        // std::cout<<"sqrt numel points"<<std::endl;
-        // std::cout<<sqrt_numel_points<<std::endl;
-        // change_points= norm_diff_points / sqrt_numel_points;
-        // std::cout<<"change points"<<std::endl;
-        // std::cout<<change_points<<std::endl;
-            // throw std::exception();
-            reestimate_all_views(pathway_segment, idx_cameras);
+            reestimate_all_points(pathway_segment, idx_points, fixed);
+            reestimate_all_views(pathway_segment, idx_cameras, fixed);
         }
         
         // Checking cams
@@ -168,22 +166,12 @@ Refinement::Refinement(DataStructures::SfMData& data, DataStructures::ComputedCa
         double sqrt_numel_points = std::sqrt(numel_old_points);
         change_points= norm_diff_points / sqrt_numel_points;
 
-        // std::cout<<"change points"<<std::endl;
-        // std::cout<<change_points<<std::endl;
-        // std::cout<<"change cameras"<<std::endl;
-        // std::cout<<change_cameras<<std::endl;
-        // throw std::exception();
-
         if(iteration_number>Options::MAX_ITERATION_REFINEMENT&& (change_points+change_cameras)/2<min_change){
-            std::cout<<"YYYUUUUP"<<std::endl;
             break;
 
         }
-        // std::cout<<change_pts<<std::endl;
         iteration_number++;
     }
-    // std::cout<<change_cameras<<std::endl;
-    // std::cout<<change_points<<std::endl;
     std::cout<<"refinement "<<iteration_number <<" iterations' "<<std::endl;
 
     if(Options::LOG_TIMER){
@@ -194,18 +182,12 @@ Refinement::Refinement(DataStructures::SfMData& data, DataStructures::ComputedCa
     }
 }
     
-void Refinement::reestimate_all_points(Eigen::VectorXi pathway, Eigen::VectorXi idx_points){
-    // std::cout<<"reestimating all points"<<std::endl;
-    //
-    //
-    // std::cout<<"idx_points"<<std::endl;
-    // std::cout<<idx_points<<std::endl;
+void Refinement::reestimate_all_points(Eigen::VectorXi pathway, Eigen::VectorXi idx_points, std::vector<std::vector<int>> fixed){
 
     for (int i =0; i<idx_points.size(); i++){
-        // std::cout<<i<<std::endl;
         int idx = pathway(idx_points(i))-1;
         std::vector<int> fixed_views;
-        fixed_views = camera_variables.fixed[idx_points[i]];
+        fixed_views = fixed[idx_points[i]];
         Eigen::VectorXi visible_views = visible.col(idx).cast<int>();
         for(auto i: fixed_views){
             visible_views(i) = false;
@@ -220,60 +202,13 @@ void Refinement::reestimate_all_points(Eigen::VectorXi pathway, Eigen::VectorXi 
             }
         }
         Eigen::VectorXi visible_views2 = Eigen::Map<Eigen::VectorXi>(test.data(), test.size());
-        // std::cout<<visible_views2<<std::endl;
-
         fixed_views_eigen.conservativeResize(fixed_views_eigen.size() + visible_views2.size());
         fixed_views_eigen.tail(visible_views2.size()) = visible_views2;
 
-        // if(idx ==1){
-            // std::cout<<"idx_points"<<std::endl;
-            // std::cout<<idx_points<<std::endl;
-            // std::cout<<"pathway"<<std::endl;
-            // std::cout<<pathway<<std::endl;
-        //     std::cout<<"Fixed views eigen"<<std::endl;
-        //     std::cout<<fixed_views_eigen<<std::endl;
-        //     std::cout<<"Visible views"<<std::endl;
-        //     std::cout<<visible_views<<std::endl;
-        //     std::cout<<"Visible views 2"<<std::endl;
-        //     std::cout<<visible_views2<<std::endl;
-        //     std::cout<<"idx"<<std::endl;
-        //     std::cout<<idx<<std::endl;
-        //     std::cout<<"idx point i"<<std::endl;
-        //     std::cout<<idx_points(i)<<std::endl;
-        //     std::cout<<"i"<<std::endl;
-        //     std::cout<<i<<std::endl;
-        //     std::cout<<"fixed views"<<std::endl;
-        //     for(auto i: fixed_views){
-        //         std::cout<<i<<std::endl;
-        //     }
-        // }
-        // if(fixed_views_eigen.size()<4){
-            // std::cout<<"less htan 4"<<std::endl;
 
-            // throw std::exception();
-        // }
-        // std::cout<<"fixed views eigen"<<std::endl;
-        // std::cout<<fixed_views_eigen<<std::endl<<std::endl;
-        // std::cout<<"idx"<<std::endl;
-        // std::cout<<idx<<std::endl<<std::endl;
-            // auto start = std::chrono::high_resolution_clock::now();
-
-        // if (Options::LOG_TIMER) {
-        //     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-        //     std::cout << "Estimated Points execution time: " << duration.count() << " milliseconds" << std::endl;
-        // }
 
         EstimatedPoints* estim = new EstimatedPoints(data,camera_variables.cameras, fixed_views_eigen, idx, fixed_views.size());
         Eigen::VectorXd estimation = estim->estim;
-        // if(idx ==1){
-        //     std::cout<<estimation<<std::endl;
-        // }
-        // std::cout<<"estimation"<<std::endl;
-        // std::cout<<estimation<<std::endl;
-        // if (Options::LOG_TIMER) {
-        //     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-        //     std::cout << "Estimated Points execution time: " << duration.count() << " milliseconds" << std::endl;
-        // }
 
         // auto end = std::chrono::high_resolution_clock::now();
         // if (Options::LOG_TIMER) {
@@ -283,34 +218,30 @@ void Refinement::reestimate_all_points(Eigen::VectorXi pathway, Eigen::VectorXi 
         // std::cout<<estimation<<std::endl;
         delete(estim);
 
-        if(estimation.size()==0){
+        if(estimation.size()==0|| estimation(0)==std::numeric_limits<double>::quiet_NaN()){
             std::cout<<"Estimation point is empty"<<std::endl;
             throw std::exception();
         }
         else{
             assert(estimation.size()==4);
-            // std::cout<<"estimation not empty"<<std::endl;
             camera_variables.points.col(idx) = estimation;
         }
     }
 }
 
-void Refinement::reestimate_all_views(Eigen::VectorXi pathway, Eigen::VectorXi idx_cameras){
 
-    //changing this back to idx_cameras breaks reestimate points
-    // for (int i =0; i<idx_cameras.size(); i++){
-    for (int i =0; i<1; i++){
-    // for (auto idx: camera_variables.negative_pathway){
+void Refinement::reestimate_all_views(Eigen::VectorXi pathway, Eigen::VectorXi idx_cameras, std::vector<std::vector<int>> fixed){
+
+    for (int i =0; i<idx_cameras.size(); i++){
         int idx = (-pathway(idx_cameras(i)))-1;
         std::vector<int> fixed_points;
-        fixed_points= camera_variables.fixed[idx_cameras[i]];
+        fixed_points= fixed[idx_cameras[i]];
         Eigen::VectorXi visible_points= visible.row(idx).cast<int>();
         for(auto i: fixed_points){
             visible_points(i) = false;
         }
 
         Eigen::VectorXi fixed_points_eigen = Eigen::Map<Eigen::VectorXi>(fixed_points.data(), fixed_points.size());
-        
         std::vector<int> test;
         for(int i=0 ; i <visible_points.size(); i++){
             if(visible_points(i)){
@@ -323,33 +254,20 @@ void Refinement::reestimate_all_views(Eigen::VectorXi pathway, Eigen::VectorXi i
         fixed_points_eigen.tail(visible_points2.size()) = visible_points2;
 
         auto start = std::chrono::high_resolution_clock::now();
-
-        // std::cout<<"Fixed points eigen size"<<std::endl<<std::endl;
-        // std::cout<<fixed_points_eigen.size()<<std::endl<<std::endl;
         EstimatedViews* estim = new EstimatedViews(data, camera_variables.points, fixed_points_eigen, idx , fixed_points.size());
         auto end = std::chrono::high_resolution_clock::now();
-        // if (Options::LOG_TIMER) {
-        //     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-        //     std::cout << "Estimated Views execution time: " << duration.count() << " milliseconds" << std::endl;
-        // }
-        // std::cout<<estim->estim<<std::endl;
         Eigen::VectorXd estimation= estim->estim;
         delete(estim);
 
-        if(estimation.size()==0){
+        if(estimation.size()==0||estimation(0)==std::numeric_limits<double>::quiet_NaN()){
             std::cout<<"Estimation view is empty"<<std::endl;
         }
         else{
-            // std::cout<<estimation<<std::endl;
             assert(estimation.size()==12);
             Eigen::MatrixXd mat = estimation;
             mat.resize(4,3);
-
             camera_variables.cameras.block(idx*3,0,3,4) = mat.transpose();
-
         }
-        
     }
-
 }
 

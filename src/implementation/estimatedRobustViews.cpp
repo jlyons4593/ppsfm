@@ -18,6 +18,7 @@ EstimatedRobustViews::EstimatedRobustViews(DataStructures::SfMData& data, DataSt
     best_inliers = Eigen::VectorXi::Zero(known_points.size());
     int iteration_number = 0;
     int max_iterations = Options::MAX_ITERATION_ROBUST(1);
+    // int max_iterations = 3;
 
 
     // std::cout<<"Robust Loop Entry "<<std::endl;
@@ -32,14 +33,21 @@ EstimatedRobustViews::EstimatedRobustViews(DataStructures::SfMData& data, DataSt
         for(int i =0; i<subset.size(); i++){
             subset_points(i) = known_points(subset(i));
         }
+        // std::cout<<"subset points"<<std::endl;
+        // std::cout<<subset_points<<std::endl;
+        // std::cout<<"new view"<<std::endl;
+        // std::cout<<new_view<<std::endl;
         // std::cout<<"pre estim views"<<std::endl<<std::endl;
         // std::cout<< subset_points<<std::endl<<std::endl;
         // std::cout<<"known_points"<<std::endl<<std::endl;
         // std::cout<< known_points<<std::endl<<std::endl;
         // std::cout<< new_view<<std::endl<<std::endl;
         EstimatedViews estim_views = EstimatedViews(data, camera_variables.points, subset_points, new_view, 6);
+
         // std::cout<<"post estim views"<<std::endl;
         Eigen::VectorXd estim = estim_views.estim;
+        // std::cout<<"estim"<<std::endl;
+        // std::cout<<estim<<std::endl;
         Eigen::MatrixXd sys= estim_views.sys;
         Eigen::MatrixXd temp = sys*estim ;
         // std::cout<<"estim vars set"<<std::endl;
@@ -86,6 +94,12 @@ EstimatedRobustViews::EstimatedRobustViews(DataStructures::SfMData& data, DataSt
     }
     std::cout<<"best_score:"<<std::endl;
     std::cout<<best_score<<std::endl;
+    if(best_score == std::numeric_limits<double>::infinity() ){
+        // std::cout<<"known points"<<std::endl;
+        // std::cout<<known_points<<std::endl;
+
+        throw std::exception();
+    }
 }
 double EstimatedRobustViews::computeScore(Eigen::VectorXd estimation,Eigen::Vector3i idx_view, Eigen::VectorXi known_points, std::vector<int> inliers){
     std::pair<Eigen::VectorXd, Eigen::RowVectorXd> reproj = compute_reproj(estimation, idx_view, known_points);

@@ -124,12 +124,21 @@ EstimatedPoints::EstimatedPoints(DataStructures::SfMData& data,Eigen::MatrixXd& 
 
     // std::cout<<"B"<<std::endl;
     // std::cout<<b<<std::endl;
+    // slower version
+    // Eigen::ColPivHouseholderQR<Eigen::MatrixXd> qr(A);
+    // Eigen::MatrixXd Q_full = qr.matrixQ();
+    // Eigen::MatrixXd R = qr.matrixR().topLeftCorner(A.cols(), A.cols()).triangularView<Eigen::Upper>();
+    // Eigen::VectorXi p = qr.colsPermutation().indices();
+    // Eigen::MatrixXd Q = Q_full.leftCols(A.cols());
+            
     Eigen::ColPivHouseholderQR<Eigen::MatrixXd> qr(A);
-    Eigen::MatrixXd Q_full = qr.matrixQ();
+    Eigen::MatrixXd QR = qr.matrixQR();
     Eigen::MatrixXd R = qr.matrixR().topLeftCorner(A.cols(), A.cols()).triangularView<Eigen::Upper>();
     Eigen::VectorXi p = qr.colsPermutation().indices();
-    Eigen::MatrixXd Q = Q_full.leftCols(A.cols());
-            
+    // Eigen::MatrixXd Q = Q_full.leftCols(A.cols());
+    // DataStructures::printColsRows(Q, "Q");
+    Eigen::MatrixXd thinQ(Eigen::MatrixXd::Identity(A.rows(),A.cols()));
+    thinQ = qr.householderQ()*thinQ;
 
     bool hasSmallDiagonalElement = false;
     // std::cout<<R.diagonal()<<std::endl;
@@ -144,7 +153,8 @@ EstimatedPoints::EstimatedPoints(DataStructures::SfMData& data,Eigen::MatrixXd& 
         Eigen::VectorXd estimation; 
     }
     else{
-        Eigen::MatrixXd d = Q.transpose()*b;
+        Eigen::MatrixXd d = thinQ.transpose()*b;
+        // Eigen::MatrixXd d = Q.transpose()*b;
         Eigen::MatrixXd x = R.triangularView<Eigen::Upper>().solve(d);
         Eigen::VectorXi pp = Eigen::VectorXi::LinSpaced(3, 0, 3);
         Eigen::PermutationMatrix<Eigen::Dynamic, Eigen::Dynamic> perm(p);
