@@ -5,6 +5,18 @@
 #pragma once
 namespace DataStructures {
 
+struct ModelData{
+    std::vector<double> timings;
+    Eigen::MatrixXd initial_cameras;
+    Eigen::MatrixXd initial_points;
+    Eigen::VectorXi initial_pathway;
+    std::vector<std::vector<int>> initial_fixed;
+    Eigen::MatrixXd cameras;
+    Eigen::MatrixXd points;
+    Eigen::VectorXi pathway;
+    std::vector<std::vector<int>> fixed;
+    Eigen::Array<bool, Eigen::Dynamic, Eigen::Dynamic> inliers; 
+};
 struct InputMatrices {
   Eigen::SparseMatrix<double> measurements;
   Eigen::MatrixXd image_size;
@@ -30,32 +42,29 @@ struct ViewpairAffinity {
   Eigen::MatrixXd view_pairs;
   Eigen::VectorXd Affinity;
   ViewpairAffinity() {
-    view_pairs = Eigen::MatrixXd(0, 0); // No initial view pairs
-    Affinity = Eigen::VectorXd(0);      // No initial affinities
+    view_pairs = Eigen::MatrixXd(0, 0);
+    Affinity = Eigen::VectorXd(0);      
   }
 };
 
 struct SfMData {
-  Eigen::MatrixXd visible; // Assuming FxN size, binary visibility matrix
-  Eigen::MatrixXd cost_function_data;      // Data matrix for computations
-  Eigen::MatrixXd normalised_measurements; // Normalized homogeneous image
-                                           // projection coordinates, size 3FxN
-  Eigen::MatrixXd normalisations; // Normalisation transformations, size 3Fx3
+  Eigen::MatrixXd visible; 
+  Eigen::MatrixXd cost_function_data;    
+  Eigen::MatrixXd normalised_measurements;
+  Eigen::MatrixXd normalisations; 
   Eigen::MatrixXd
-      image_measurements; // Unnormalized homogeneous measurements, size 3FxN
+      image_measurements; 
   Eigen::MatrixXd
-      pseudo_inverse_measurements; // Pseudo-inverse or cross-product matrix,
-                                   // size Fx3N
+      pseudo_inverse_measurements; 
   Eigen::Array<bool, 1, Eigen::Dynamic>
-      removed_points; // Binary mask for ignored points, size 1xN
+      removed_points; 
 
   SfMData() = default;
 
-  // Constructor to initialize the matrices with sizes if known at creation time
   SfMData(int F, int N)
       : visible(Eigen::MatrixXd::Zero(F, N)),
         cost_function_data(Eigen::MatrixXd::Zero(
-            F, N)), // Modify accordingly if different dimensions are required
+            F, N)), 
         normalised_measurements(Eigen::MatrixXd::Zero(3 * F, N)),
         normalisations(Eigen::MatrixXd::Zero(3 * F, 3)),
         image_measurements(Eigen::MatrixXd::Zero(3 * F, N)),

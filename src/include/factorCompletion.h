@@ -19,6 +19,15 @@ public:
     FactorCompletion(DataStructures::SfMData data,   
     DataStructures::ComputedCameraPoints camera_variables,
     DataStructures::ViewpairAffinity pair_affinity, Eigen::MatrixXd image_sizes, Eigen::MatrixXd centers): data(data), camera_variables(camera_variables), pair_affinity(pair_affinity), image_sizes(image_sizes), centers(centers) {}
+    DataStructures::ComputedCameraPoints& getCameraVariables(){
+        return camera_variables;
+    }
+    DataStructures::SfMData& getData(){
+        return data;
+    }
+    Eigen::Array<bool, Eigen::Dynamic, Eigen::Dynamic>& getInliers(){
+        return inliers;
+    }
 
     void update_pvs(Eigen::VectorXi added_points);
 

@@ -4,18 +4,13 @@ Diagnosis::Diagnosis(Eigen::Array<bool, Eigen::Dynamic, Eigen::Dynamic>& inliers
     int fig_base = 0;
     int num_views = data.visible.rows();
     int num_points = data.visible.cols();
-    std::cout<<num_views<< " "<<num_points<<std::endl;
 
-    // auto& valid_cams = camera_variables.negative_pathway;
-    // // std::cout<<valid_cams<<std::endl;
-    // auto& valid_points = camera_variables.positive_pathway;
-    
   std::vector<int> positiveValues;
   std::copy_if(
       camera_variables.pathway.data(),
       camera_variables.pathway.data() + camera_variables.pathway.size(),
       std::back_inserter(positiveValues), [](int value) { return value > 0; });
-  // Now create a new Eigen vector from the std::vector of positive values
+
   Eigen::Map<Eigen::VectorXi> valid_points(positiveValues.data(),
                                            positiveValues.size());
   std::vector<int> negativeValues;
@@ -33,7 +28,6 @@ Diagnosis::Diagnosis(Eigen::Array<bool, Eigen::Dynamic, Eigen::Dynamic>& inliers
 
     Eigen::MatrixXd unknowns = data.visible;
 
-    // Set unknowns to 0 for valid cameras and valid points
 
     // Set unknowns to false for valid cameras and valid points
     for (int i = 0; i < valid_cams.size(); ++i) {
@@ -41,10 +35,8 @@ Diagnosis::Diagnosis(Eigen::Array<bool, Eigen::Dynamic, Eigen::Dynamic>& inliers
             unknowns(valid_cams(i), valid_points(j)) = 0;
         }
     }
-    std::cout<<"got unknowns"<<std::endl;
     // Update inliers by removing unknowns
     inliers = (inliers.array() != 0 && unknowns.array() == 0);
-    std::cout<<"past inliers"<<std::endl;
 
     // Count the number of inliers
     int num_inliers = (inliers.array() != 0).cast<int>().sum();
@@ -52,7 +44,6 @@ Diagnosis::Diagnosis(Eigen::Array<bool, Eigen::Dynamic, Eigen::Dynamic>& inliers
     // Count the number of visible points that are not unknowns
     Eigen::MatrixXd visible_not_unknowns = (data.visible.array() != 0 && unknowns.array() == 0).cast<double>();
     int num_visible_not_unknowns = (visible_not_unknowns.array() != 0).cast<int>().sum();
-    std::cout<<"past visibles"<<std::endl;
 
     // Calculate the inlier ratio
     double inlier_ratio = static_cast<double>(num_inliers) / num_visible_not_unknowns * 100;

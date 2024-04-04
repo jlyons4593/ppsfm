@@ -11,6 +11,7 @@ const int SCORE_LEVEL = 6;
 const int MIN_COMMON_INIT = 200;
 const int MAX_MODELS = 1;
 
+const bool FINAL_REFINEMENT = true;
 const int INIT_LEVEL_POINTS = 5;
 const int DIFFER_LAST_LEVEL= false;
 const int MAX_LEVEL_VIEWS = 4;

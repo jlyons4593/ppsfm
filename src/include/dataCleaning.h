@@ -68,7 +68,6 @@ public:
       }
     }
 
-    // Assuming 'data.visible' and 'orig_meas' are Eigen matrices
     Eigen::MatrixXd filtered_visible(data.visible.rows(), indices_to_keep.size());
     Eigen::MatrixXd filtered_orig_meas(dense_measurements.rows(),
                                        indices_to_keep.size());
@@ -107,7 +106,7 @@ Eigen::MatrixXd cpm(const Eigen::MatrixXd& v) {
     return data;
   }
   // THIS FUNCTION NOW LOOKS CORRECT
-  void process(Eigen::SparseMatrix<double> &measurements) {
+  void process(Eigen::SparseMatrix<double>& measurements) {
     Logger::logSection("Prepare Data");
     dense_measurements = Eigen::MatrixXd(measurements);
 
@@ -118,19 +117,15 @@ Eigen::MatrixXd cpm(const Eigen::MatrixXd& v) {
 
     data.image_measurements =
         Eigen::MatrixXd::Zero(3 * number_of_views, number_of_points);
-    // printColsRows(image_measurements, "Image Measurements");
     data.normalised_measurements =
         Eigen::MatrixXd::Zero(3 * number_of_views, number_of_points);
-    // printColsRows(normalised_measurements, "Normalised Measurements");
     data.normalisations = Eigen::MatrixXd::Constant(
         3 * number_of_views, 3, std::numeric_limits<double>::quiet_NaN());
-    // printColsRows(normalisations, "Normalisations");
     for (int j = 0; j < number_of_views; ++j) {
       Eigen::RowVectorXd visible_points = data.visible.row(j);
 
-      std::vector<int> vis_pts_indices; // This will need to be filled with
+      std::vector<int> vis_pts_indices; 
       // Iterate over 'visible_points' to find and store indices of visible
-      // points
       for (int i = 0; i < visible_points.size(); ++i) {
         if (visible_points(i) > 0) { 
           vis_pts_indices.push_back(i);
@@ -156,7 +151,6 @@ Eigen::MatrixXd cpm(const Eigen::MatrixXd& v) {
 
       data.normalisations.block(j * 3, 0, 3, data.normalisations.cols()) = transform;
       // Update normalisations
-      // EXPLAIN WHAT THIS IS DOING
       for (int i = 0; i < vis_pts_indices.size(); ++i) {
         int point_col = vis_pts_indices[i]; 
                                            
@@ -182,30 +176,22 @@ Eigen::MatrixXd cpm(const Eigen::MatrixXd& v) {
   
     Eigen::MatrixXd meas(1,3);
     for (size_t k = 0; k < number_of_visible; ++k) { 
-    // std::cout<<number_of_visible<<std::endl;
-    // for (size_t k = 10422; k < 10423; ++k) { 
-    // for (size_t k = 0; k < 2; ++k) { 
       int startRow = 3 * view_idx[k]; 
 
       int colIdx =
           point_idx[k]; 
-      // Ensure indices are within bounds
       if (startRow >= 0 && colIdx >= 0 &&
           startRow + 2 < this->data.normalised_measurements.rows() &&
           colIdx < this->data.normalised_measurements.cols()) {
         meas = this->data.normalised_measurements.block(startRow, colIdx, 3, 1);
-        // std::cout<<meas<<std::endl;
-        // Optionally, use 'meas' here, e.g., print or process it
       }
 
-      // auto [cm, pm] = eliminate_pinv(meas);
       auto [cm, pm] = eliminate_dlt(meas);
 
       pinv_meas_i.segment(3 * k, 3) = Eigen::VectorXd::Constant(3, view_idx[k]);
 
       int startIdx = 3 * (point_idx[k]); 
 
-      // Assuming pinv_meas_j has been sized correctly
       if (startIdx + 2 < pinv_meas_j.size()) {
         for (int i = 0; i < 3; ++i) {
           pinv_meas_j(k*3+i) =
@@ -213,13 +199,11 @@ Eigen::MatrixXd cpm(const Eigen::MatrixXd& v) {
         }
       }
 
-      // Assign values from pm to pinv_meas_v
       for (size_t i = 0; i < pm.size(); ++i) {
         if (3*k + i < pinv_meas_v.size()) {
           pinv_meas_v(k*3 + i) = pm(i);
         }
       }
-      // std::cout<<pinv_meas_v(k+1)<<std::endl;
       int idx1 = 2 * view_idx[k];
       int idx2 = 2 * view_idx[k] + 1;
 
@@ -243,7 +227,6 @@ Eigen::MatrixXd cpm(const Eigen::MatrixXd& v) {
           cm_flattened.push_back(cm(i, j));
         }
       }
-      // Assuming cm_flattened now contains the flattened values, assign them to
       // data_v
       for (size_t i = 0; i < cm_flattened.size(); ++i) {
         if (k*6 + i < data_v.size()) {
@@ -264,10 +247,8 @@ Eigen::MatrixXd cpm(const Eigen::MatrixXd& v) {
          int col = static_cast<int>(data_j(k));
          data.cost_function_data(row, col) = data_v(k);
      }
-     // std::cout<<data.cost_function_data<<std::endl;
 
     DataStructures::printColsRows(data.cost_function_data, "Cost Function Data");
-//
      rows = static_cast<int>(pinv_meas_i.maxCoeff()) + 1;
      cols = static_cast<int>(pinv_meas_j.maxCoeff()) + 1;
     
@@ -279,17 +260,15 @@ Eigen::MatrixXd cpm(const Eigen::MatrixXd& v) {
          int col = static_cast<int>(pinv_meas_j(p));
          data.pseudo_inverse_measurements(row, col) = pinv_meas_v(p);
      }
-     // std::cout<<data.pseudo_inverse_measurements<<std::endl;
-    DataStructures::printColsRows(data.pseudo_inverse_measurements,"pinv_meas");
   }
 
   Eigen::MatrixXd filterVisibleMatrix(Eigen::MatrixXd &dense_measurements) {
 
-    // Step 1: creating a matrix of same size as dense measurements that is a
+    // creating a matrix of same size as dense measurements that is a
     // binary visibility matrix
     Eigen::MatrixXd visible = (dense_measurements.array() != 0).cast<double>();
 
-    // Step 2: Filter rows to ensure visibility in both subsequent rows
+    // filter rows to ensure visibility in both subsequent rows
     Eigen::MatrixXd filtered_visible(visible.rows() / 2, visible.cols());
     for (int i = 0; i < visible.rows() / 2; ++i) {
       filtered_visible.row(i) =
@@ -300,9 +279,7 @@ Eigen::MatrixXd cpm(const Eigen::MatrixXd& v) {
     // Compute the sum of each column to count the number of views each point is
     // data.visible in
     Eigen::VectorXi visibility_count = visible.cast<int>().colwise().sum();
-
     int threshold = Options::ELIGIBILITY_POINTS[Options::MAX_LEVEL_POINTS];
-
     std::vector<int> points_to_keep;
     for (int i = 0; i < visibility_count.size(); ++i) {
       if (visibility_count[i] >= threshold) {
@@ -326,14 +303,13 @@ Eigen::MatrixXd cpm(const Eigen::MatrixXd& v) {
     int number_of_points = points.cols();
     int dimension = points.rows();
 
-    // Check for homogeneity
     bool homogeneous = (points.row(dimension - 1).array() == 1).all();
     if (homogeneous) {
-      --dimension; // Adjust for homogeneity by ignoring the last row for
-                   // centroid and scaling calculations
+      --dimension; 
+                  
       points.conservativeResize(
           dimension,
-          Eigen::NoChange); // Temporarily adjust points matrix for processing
+          Eigen::NoChange); 
     }
 
     // Calculate centroid
@@ -364,29 +340,8 @@ Eigen::MatrixXd cpm(const Eigen::MatrixXd& v) {
 
     return {trans, transformedPoints};
   }
-  /*
-   * This will require implementation of the CPM function for signal processing
-   * from matlab into C++
-   * */
-  // std::pair<Eigen::MatrixXd, Eigen::MatrixXd> eliminate_dlt(const
-  // Eigen::SparseMatrix<double> &measurements) {
-  //   // Calculate cpm measurements
-  //   Eigen::SparseMatrix<double> meas_transposed = measurements.transpose();
-  //   double sumOfSquares = 0.0;
-  //   for (int k = 0; k < measurements.outerSize(); ++k) {
-  //       for (Eigen::SparseMatrix<double>::InnerIterator it(measurements, k);
-  //       it; ++it) {
- //           sumOfSquares += std::pow(it.value(), 2);
-  //       }
-  //   }
-  //   Eigen::SparseMatrix<double> cpm_meas = meas_transposed / sumOfSquares;
-  //
-  //   return
-  // }
-
   std::pair<Eigen::MatrixXd, Eigen::MatrixXd>
   eliminate_pinv(const Eigen::MatrixXd &measurements) {
-    // First, convert meas toe dense for operations that are not well-defined on
     // sparse matrices Look into changing this to keeping this sparse for
     // optimisations later
 
@@ -394,12 +349,8 @@ Eigen::MatrixXd cpm(const Eigen::MatrixXd& v) {
     Eigen::MatrixXd pseudo_inverse_measurements =
         measurements.transpose() / measurements.array().square().sum();
 
-    // Multiply measurements by pseudo_inverse_measurements to get data
-    // Since this operation likely results in a dense matrix, we perform it on
-    // the dense version of meas
     Eigen::MatrixXd data = measurements * pseudo_inverse_measurements;
 
-    // Adjust specific diagonal elements of data
     if (data.rows() >= 3 && data.cols() >= 3) {
       data(0, 0) -= 1;
       data(1, 1) -= 1;
