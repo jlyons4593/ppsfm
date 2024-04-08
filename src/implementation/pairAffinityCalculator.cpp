@@ -29,6 +29,7 @@
 
         // Logical AND to find common points
         Eigen::ArrayXi common_points = (logicalVisible.row(first_view).array() && logicalVisible.row(second_view).array()).cast<int>();
+        // std::cout<<common_points<<std::endl;
 
         int num_common = common_points.count(); // Count non-zeros
 

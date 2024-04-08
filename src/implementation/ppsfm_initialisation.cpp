@@ -1,4 +1,5 @@
 #include "ppsfm_initialisation.h"
+#include "dataStructures.hpp"
 #include "logger.h"
 #include <exception>
 #include <iostream>
@@ -11,6 +12,7 @@ void Initialisation::process() {
 
   Eigen::MatrixXi estimated_pairs =
       Eigen::MatrixXi::Zero(view_pairs.rows(), view_pairs.cols());
+  // std::cout<<view_pairs<<std::endl;
 
   Eigen::MatrixXi not_estimated_pairs =
       (estimated_pairs.array() == 0).cast<int>();
@@ -64,7 +66,6 @@ void Initialisation::process() {
   Logger::logSubsection("Main PPSFM Initialisation Loop");
 
   for (int i = 0; i < sorted_idx.size(); i++) {
-    // for(int i=0; i<1; i++){
     int first_view =
         view_pairs(sorted_idx[i], 0); 
     int second_view = view_pairs(sorted_idx[i], 1);
@@ -74,6 +75,7 @@ void Initialisation::process() {
     Eigen::VectorXi visible_points =
         visible.row(first_view)
             .binaryExpr(visible.row(second_view), logicalAnd);
+
     // std::cout<<visible_points.size()<<std::endl;
     std::vector<int> first_view_idx;
     std::vector<int> second_view_idx;
@@ -90,18 +92,23 @@ void Initialisation::process() {
 
     // Fill measurement block 1
     for (int i = 0; i < second_view_idx.size(); ++i) {
+      int visible_count =0;
       for (int j = 0; j < visible_points.size(); ++j) {
-        if (visible_points(j) > 0) {
-          block1(i, j) = measurement(second_view_idx[i], j);
+        if (visible_points(j) != 0) {
+          block1(i, visible_count) = measurement(second_view_idx[i], j);
+          visible_count++;
         }
       }
     }
     // Fill measuremnent block 2
     for (int i = 0; i < first_view_idx.size(); ++i) {
+      int visible_count =0;
       for (int j = 0; j < visible_points.size(); ++j) {
         if (visible_points(j) > 0) {
-          block2(i, j) = measurement(first_view_idx[i], j);
+          block2(i, visible_count) = measurement(first_view_idx[i], j);
+          visible_count++;
         }
+
       }
     }
 
@@ -152,8 +159,6 @@ Initialisation::compute_cams(std::vector<int> initial_views,
   Eigen::Vector3i second_view(3 * initial_views[1], 3 * initial_views[1] + 1,
                               3 * initial_views[1] + 2);
 
-  // std::cout<<"fundamental matrix"<<std::endl;
-  // std::cout<<fundamental_matrix<<std::endl;
   Eigen::JacobiSVD<Eigen::MatrixXd> svd(fundamental_matrix,
                                         Eigen::ComputeFullV);
   Eigen::MatrixXd V = svd.matrixV();

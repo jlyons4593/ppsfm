@@ -47,7 +47,25 @@ struct ViewpairAffinity {
   }
 };
 
+
+struct FinalData {
+  Eigen::MatrixXd centers;
+  Eigen::Matrix<bool, Eigen::Dynamic, Eigen::Dynamic> visible; 
+  Eigen::MatrixXd cost_function_data;    
+  Eigen::MatrixXd normalised_measurements;
+  Eigen::MatrixXd normalisations; 
+  Eigen::MatrixXd
+      image_measurements; 
+  Eigen::MatrixXd
+      pseudo_inverse_measurements; 
+  Eigen::Array<bool, 1, Eigen::Dynamic>
+      removed_points; 
+
+  FinalData() = default;
+
+};
 struct SfMData {
+  Eigen::MatrixXd centers;
   Eigen::MatrixXd visible; 
   Eigen::MatrixXd cost_function_data;    
   Eigen::MatrixXd normalised_measurements;

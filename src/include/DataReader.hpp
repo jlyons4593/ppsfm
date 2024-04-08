@@ -53,6 +53,7 @@ inline DataStructures::InputMatrices matread(const char *file) {
 
   // Load the sparse matrix measurements
   loadSparseMatrix("measurements", matrices.measurements);
+  // std::cout<<matrices.measurements.col(0)<<std::endl;
 
   // Helper lambda to load a matrix
   auto loadMatrix = [&](const char *name, Eigen::MatrixXd &matrix) {

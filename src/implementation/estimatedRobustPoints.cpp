@@ -12,13 +12,17 @@
 #include "options.h"
 
 EstimatedRobustPoints::EstimatedRobustPoints(DataStructures::SfMData& data, DataStructures::ComputedCameraPoints& camera_variables, Eigen::VectorXi& known_views, int new_point, int num_rejected, int level): data(data), camera_variables(camera_variables){
-    // std::cout<<"est rob points"<<std::endl;
 
     
+    std::sort(known_views.data(), known_views.data() + known_views.size());
     int num_known_views = known_views.size();
     Eigen::MatrixXd denorm_cams(3 * num_known_views, 4);
     denorm_cams.setConstant(std::numeric_limits<double>::quiet_NaN());
 
+    // have a look at denorm cam normalisation block can be the same
+
+    Eigen::MatrixXd cameras_block = camera_variables.cameras.block(19*3,0,3,camera_variables.cameras.cols());
+        
     for(int j=0; j<known_views.size(); j++){
         Eigen::MatrixXd normalisation_block = data.normalisations.block(known_views(j)*3,0,3,data.normalisations.cols());
         Eigen::MatrixXd cameras_block = camera_variables.cameras.block(known_views(j)*3,0,3,camera_variables.cameras.cols());
@@ -46,11 +50,9 @@ EstimatedRobustPoints::EstimatedRobustPoints(DataStructures::SfMData& data, Data
     best_inliers = Eigen::VectorXi::Zero(known_views.size());
     int iteration_number = 0;
     int max_iterations = Options::MAX_ITERATION_ROBUST(1);
-    // std::cout<<"Loop entry"<<std::endl;
 
 
     //Main work loop
-    // while (iteration_number<=0){
     while (iteration_number<=max_iterations){
 
         Eigen::VectorXi subset = Helper::random_subset(known_views, num_rejected, Options::MINIMAL_POINT(level));
@@ -59,37 +61,33 @@ EstimatedRobustPoints::EstimatedRobustPoints(DataStructures::SfMData& data, Data
         for(int i =0; i<subset.size(); i++){
             subset_views(i) = known_views(subset(i));
         }
+        EstimatedPoints estim_points= EstimatedPoints(data, camera_variables.cameras, subset_views, new_point, 2);
+        Eigen::VectorXd estim = estim_points.estim;
 
-        EstimatedPoints* estim_points= new EstimatedPoints(data, camera_variables.cameras, subset_views, new_point, 2);
-        Eigen::VectorXd estim = estim_points->estim;
-        Eigen::MatrixXd sys= estim_points->sys;
-        delete(estim_points);
+        Eigen::MatrixXd sys= estim_points.sys;
         Eigen::MatrixXd temp = sys*estim ;
         double threshold = temp.norm()/std::sqrt(sys.rows());
 
+
         // std::cout<<"pre if"<<std::endl;
         if (estim.size()>0 && threshold<= Options::SYSTEM_THRESHOLD){
-            // std::cout<< "before inlier"<<std::endl;
             Helper::InlierResults result = find_inliers(estim ,denorm_cams, idx_views, new_point);
-            // std::cout<<"inliers"<<std::endl;
+
             // throw std::exception();
             // std::cout<<"after inlier"<<std::endl
 
             if (result.inliers.size() >= Options::MINIMAL_POINT[level] && result.score< 7 * best_score) {
+
                 // std::cout<<"yup1"<<std::endl;
                 Eigen::VectorXi known_views_subset(result.inliers.size());
                 for(int i=0; i<result.inliers.size();i++){
                     known_views_subset(i) = known_views(result.inliers[i]);
                 }
-                // std::cout<<"yup2"<<std::endl;
-                // Eigen::VectorXi known_inliers = known_views(result.inliers);
 
                 EstimatedPoints* estim_views2 = new EstimatedPoints(data, camera_variables.cameras, known_views_subset, new_point, result.inliers.size());
-                // std::cout<<"yup3"<<std::endl;
                 Eigen::VectorXd estim2 = estim_views2->estim;
                 Eigen::MatrixXd sys2 = estim_views2->sys;
                 delete(estim_views2);
-                // std::cout<<"yup4"<<std::endl;
 
                 Eigen::MatrixXd temp2 = sys2*estim2 ;
                 double threshold2 = temp2.norm()/std::sqrt(sys2.rows());
@@ -102,7 +100,7 @@ EstimatedRobustPoints::EstimatedRobustPoints(DataStructures::SfMData& data, Data
                         best_inliers = known_views(result.inliers);
 
                         double ratio = static_cast<double>(result.inliers.size()) / known_views.size();
-                        double prob = std::max(eps, std::min(1 - eps, 1 - std::pow(ratio,Options::MINIMAL_VIEW[level])));
+                        double prob = std::max(eps, std::min(1 - eps, 1 - std::pow(ratio,Options::MINIMAL_POINT[level])));
 
                         max_iterations= std::min(static_cast<int>(std::ceil((log_confidence) / std::log(prob))), Options::MAX_ITERATION_ROBUST[0]);
                     }
@@ -131,7 +129,7 @@ std::pair<Eigen::VectorXd, Eigen::RowVectorXd> EstimatedRobustPoints::compute_re
     Eigen::MatrixXd scaled_measurements = cameras * estimation;
     int depth_size= scaled_measurements.size()  / 3;
 
-    // Create a new vector to store every 3rd element
+// Create a new vector to store every 3rd element
     Eigen::VectorXd depths(depth_size);
 
     // Copy every 3rd element from the original vector to the new vector
@@ -146,16 +144,15 @@ std::pair<Eigen::VectorXd, Eigen::RowVectorXd> EstimatedRobustPoints::compute_re
         kronResult(i*3+1) = depths(i);
         kronResult(i*3+2) = depths(i);
     }
-    // std::cout<<"kronresult"<<std::endl;
-    // std::cout<<kronResult<<std::endl;
     
     Eigen::VectorXd reprojections = scaled_measurements.array() / kronResult.array();
-    
     Eigen::VectorXd img_meas_subset_points(idx_view.size());
     for(int i = 0 ; i<idx_view.size();i++){
         img_meas_subset_points(i) = data.image_measurements(idx_view(i), new_point);
     }
     Eigen::MatrixXd reproj_err = reprojections - img_meas_subset_points;
+    // std::cout<<"reproj err"<<std::endl;
+    // std::cout<<reproj_err<<std::endl;
     int newSize = reproj_err.size() / 3;
     Eigen::VectorXd result(newSize);
 
@@ -171,9 +168,7 @@ std::pair<Eigen::VectorXd, Eigen::RowVectorXd> EstimatedRobustPoints::compute_re
 Helper::InlierResults EstimatedRobustPoints::find_inliers(Eigen::VectorXd& estimation,Eigen::MatrixXd& cameras,Eigen::VectorXi idx_view, int new_point){
 
     Helper::InlierResults results;
-
     std::pair<Eigen::VectorXd, Eigen::RowVectorXd> reproj = compute_reproj(estimation, idx_view, cameras, new_point);
-
     Eigen::VectorXd reproj_errs = reproj.first;
     // std::cout<<"reprojection errors"<<std::endl;
     // std::cout<<reproj_errs<<std::endl;

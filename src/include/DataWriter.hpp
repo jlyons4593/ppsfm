@@ -1,15 +1,33 @@
 #include "dataStructures.hpp"
 #include "mat.h"
+#include "matrix.h"
 #include <Eigen/Dense>
 #include <Eigen/Sparse>
 #include <iostream>
 
-inline void WriteStructsToMatFile(const DataStructures::ModelData& modelData, const DataStructures::SfMData& sfmData, const std::string& fileName) {
+inline void WriteStructsToMatFile(const DataStructures::ModelData& modelData, const DataStructures::FinalData& sfmData, const std::string& fileName) {
     // Create a new MAT-file for writing.
     MATFile *pmat = matOpen(fileName.c_str(), "w");
     if (pmat == NULL) {
       std::cout<<"MATLAB:writeStructsToMatFile:fileCreationFailed"<< " Unable to create MAT-file."<<std::endl;
         return;
+    }
+    mxArray *matlabLogicalArray = mxCreateLogicalMatrix(sfmData.visible.rows(), sfmData.visible.cols());
+    mxLogical *matlabLogicalData = mxGetLogicals(matlabLogicalArray);
+
+    // Copy data from Eigen array to mxArray
+    for (Eigen::Index i = 0; i < sfmData.visible.rows(); ++i) {
+        for (Eigen::Index j = 0; j < sfmData.visible.cols(); ++j) {
+            // Row-major order indexing for MATLAB's logical array
+            matlabLogicalData[j * sfmData.visible.rows() + i] = sfmData.visible(i, j);
+        }
+    }
+
+    // Write the mxArray to the MAT-file
+    if (matPutVariable(pmat, "visible", matlabLogicalArray) != 0) {
+        std::cerr << "Error writing logical array to MAT-file.\n";
+        mxDestroyArray(matlabLogicalArray);
+        matClose(pmat);
     }
     // Close the MAT-file.
     mxArray *initial_cameras = mxCreateDoubleMatrix(modelData.initial_cameras.rows(), modelData.initial_cameras.cols(), mxREAL);
@@ -23,6 +41,17 @@ inline void WriteStructsToMatFile(const DataStructures::ModelData& modelData, co
         return;
     }
 
+    // Close the MAT-file.
+    mxArray *centers = mxCreateDoubleMatrix(sfmData.centers.rows(), sfmData.centers.cols(), mxREAL);
+    std::copy(sfmData.centers.data(), sfmData.centers.data() + sfmData.centers.size(), mxGetPr(centers));
+
+    // Write the mxArray to the MAT-file.
+    if (matPutVariable(pmat, "centers", centers) != 0) {
+      std::cout<<"MATLAB:writeStructsToMatFile:saveFailed. Unable to save 'initial_cameras' to MAT-file."<<std::endl;;
+        mxDestroyArray(centers);
+        matClose(pmat);
+        return;
+    }
     // Continuing to save other fields in ModelData
     // Convert and save 'initial_points'
     mxArray *initial_points = mxCreateDoubleMatrix(modelData.initial_points.rows(), modelData.initial_points.cols(), mxREAL);
@@ -126,14 +155,6 @@ inline void WriteStructsToMatFile(const DataStructures::ModelData& modelData, co
     // Now, converting and saving SfMData
     // This follows the same pattern as above for each field
     // Below is an example for 'visible'. Repeat for all fields in SfMData.
-    mxArray *visible = mxCreateDoubleMatrix(sfmData.visible.rows(), sfmData.visible.cols(), mxREAL);
-    std::copy(sfmData.visible.data(), sfmData.visible.data() + sfmData.visible.size(), mxGetPr(visible));
-    if (matPutVariable(pmat, "visible", visible) != 0) {
-      std::cout<<"Unable to save 'visible' to MAT-file."<<std::endl;
-        mxDestroyArray(visible);
-        matClose(pmat);
-        return;
-    }
    // Convert and save 'cost_function_data'
     mxArray *cost_function_data = mxCreateDoubleMatrix(sfmData.cost_function_data.rows(), sfmData.cost_function_data.cols(), mxREAL);
     std::copy(sfmData.cost_function_data.data(), sfmData.cost_function_data.data() + sfmData.cost_function_data.size(), mxGetPr(cost_function_data));
@@ -205,7 +226,8 @@ inline void WriteStructsToMatFile(const DataStructures::ModelData& modelData, co
     mxDestroyArray(fixed);
     mxDestroyArray(inliers);
 
-    mxDestroyArray(visible);
+    mxDestroyArray(matlabLogicalArray);
+    mxDestroyArray(centers);
     mxDestroyArray(cost_function_data);
     mxDestroyArray(normalised_measurements);
     mxDestroyArray(normalisations);

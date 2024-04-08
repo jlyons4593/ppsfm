@@ -14,7 +14,7 @@ void reestimate_all_views(Eigen::VectorXi pathway, Eigen::VectorXi idx_cameras, 
     Eigen::MatrixXd getCameras();
     Eigen::MatrixXd getPoints();
     
-    Refinement(DataStructures::SfMData& data, DataStructures::ComputedCameraPoints& camera, Eigen::Array<bool, Eigen::Dynamic, Eigen::Dynamic> visible,Eigen::VectorXi pathway_segment,std::vector<std::vector<int>> new_fixed, bool start_cameras, int type);
+    Refinement(DataStructures::SfMData& data, DataStructures::ComputedCameraPoints& camera, Eigen::Array<bool, Eigen::Dynamic, Eigen::Dynamic> visible,Eigen::VectorXi pathway_segment,std::vector<std::vector<int>> new_fixed,  bool start_cameras, int type);
 
 
 };

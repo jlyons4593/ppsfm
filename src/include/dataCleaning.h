@@ -7,6 +7,7 @@
 #include <iostream>
 #include <numeric>
 #include <ostream>
+#include <variant>
 
 #pragma once
 class DataCleaningStage {
@@ -46,39 +47,42 @@ public:
 
 
     Logger::logSubsection("Creating visibility matrix");
-    data.visible = filterVisibleMatrix(dense_measurements);
-    Eigen::RowVectorXi visibilitySum = data.visible.cast<int>().colwise().sum();
-    data.removed_points=
-        visibilitySum.array() <
-        Options::ELIGIBILITY_POINTS[Options::MAX_LEVEL_POINTS];
+    std::pair<Eigen::MatrixXd, Eigen::MatrixXd> visible_pair= filterVisibleMatrix(dense_measurements);
 
-    Logger::logSubsection("Removing Less data.visible Points");
-    std::vector<bool> pointsToRemove(data.visible.cols(), false);
-    for (int i = 0; i < data.removed_points.size(); ++i) {
-      pointsToRemove[i] = data.removed_points(i);
-    }
-    Eigen::Array<bool, 1, Eigen::Dynamic> keep_pts =
-        data.removed_points.unaryExpr([](bool v) { return !v; });
+    data.visible = visible_pair.first; 
+    dense_measurements = visible_pair.second;
+    // Eigen::RowVectorXi visibilitySum = data.visible.cast<int>().colwise().sum();
+    // data.removed_points=
+    //     visibilitySum.array() <
+    //     Options::ELIGIBILITY_POINTS[Options::MAX_LEVEL_POINTS];
+    //
+    // Logger::logSubsection("Removing Less data.visible Points");
+    // std::vector<bool> pointsToRemove(data.visible.cols(), false);
+    // for (int i = 0; i < data.removed_points.size(); ++i) {
+    //   pointsToRemove[i] = data.removed_points(i);
+    // }
+    // Eigen::Array<bool, 1, Eigen::Dynamic> keep_pts =
+    //     data.removed_points.unaryExpr([](bool v) { return !v; });
+    //
+    // // Create a list of indices to keep
+    // std::vector<int> indices_to_keep;
+    // for (int i = 0; i < keep_pts.size(); ++i) {
+    //   if (keep_pts(i)) {
+    //     indices_to_keep.push_back(i);
+    //   }
+    // }
+    //
+    // Eigen::MatrixXd filtered_visible(data.visible.rows(), indices_to_keep.size());
+    // Eigen::MatrixXd filtered_orig_meas(dense_measurements.rows(),
+    //                                    indices_to_keep.size());
+    //
+    // // Step 2: Filter columns
+    // for (size_t i = 0; i < indices_to_keep.size(); ++i) {
+    //   filtered_visible.col(i) = data.visible.col(indices_to_keep[i]);
+    //   filtered_orig_meas.col(i) = dense_measurements.col(indices_to_keep[i]);
+    // }
 
-    // Create a list of indices to keep
-    std::vector<int> indices_to_keep;
-    for (int i = 0; i < keep_pts.size(); ++i) {
-      if (keep_pts(i)) {
-        indices_to_keep.push_back(i);
-      }
-    }
-
-    Eigen::MatrixXd filtered_visible(data.visible.rows(), indices_to_keep.size());
-    Eigen::MatrixXd filtered_orig_meas(dense_measurements.rows(),
-                                       indices_to_keep.size());
-
-    // Step 2: Filter columns
-    for (size_t i = 0; i < indices_to_keep.size(); ++i) {
-      filtered_visible.col(i) = data.visible.col(indices_to_keep[i]);
-      filtered_orig_meas.col(i) = dense_measurements.col(indices_to_keep[i]);
-    }
-    data.visible = filtered_visible;
-    dense_measurements = filtered_orig_meas;
+    // data.visible = filtered_visible;
 
     number_of_visible = (data.visible.array() != 0).count();
     number_of_views = data.visible.rows();
@@ -248,7 +252,6 @@ Eigen::MatrixXd cpm(const Eigen::MatrixXd& v) {
          data.cost_function_data(row, col) = data_v(k);
      }
 
-    DataStructures::printColsRows(data.cost_function_data, "Cost Function Data");
      rows = static_cast<int>(pinv_meas_i.maxCoeff()) + 1;
      cols = static_cast<int>(pinv_meas_j.maxCoeff()) + 1;
     
@@ -260,41 +263,59 @@ Eigen::MatrixXd cpm(const Eigen::MatrixXd& v) {
          int col = static_cast<int>(pinv_meas_j(p));
          data.pseudo_inverse_measurements(row, col) = pinv_meas_v(p);
      }
+
   }
 
-  Eigen::MatrixXd filterVisibleMatrix(Eigen::MatrixXd &dense_measurements) {
+std::pair<Eigen::MatrixXd,Eigen::MatrixXd> filterVisibleMatrix(Eigen::MatrixXd &dense_measurements) {
 
     // creating a matrix of same size as dense measurements that is a
     // binary visibility matrix
     Eigen::MatrixXd visible = (dense_measurements.array() != 0).cast<double>();
+    
 
     // filter rows to ensure visibility in both subsequent rows
-    Eigen::MatrixXd filtered_visible(visible.rows() / 2, visible.cols());
-    for (int i = 0; i < visible.rows() / 2; ++i) {
-      filtered_visible.row(i) =
-          visible.row(2 * i).cwiseProduct(visible.row(2 * i + 1));
-    }
-    visible = filtered_visible;
+    // Eigen::MatrixXd filtered_visible(visible.rows() / 2, visible.cols());
+    // for (int i = 0; i < visible.rows() / 2; ++i) {
+    //   filtered_visible.row(i) =
+    //       visible.row(2 * i).cwiseProduct(visible.row(2 * i + 1));
+    // }
+    // visible = filtered_visible;
 
+    Eigen::MatrixXd reduced(visible.rows() / 2, visible.cols());
+    for (int i = 0; i < visible.rows(); i += 2) {
+        for (int j = 0; j < visible.cols(); ++j) {
+            reduced(i / 2, j) = visible(i, j) && visible(i + 1, j);
+        }
+    }
+
+    visible = reduced;
     // Compute the sum of each column to count the number of views each point is
     // data.visible in
-    Eigen::VectorXi visibility_count = visible.cast<int>().colwise().sum();
-    int threshold = Options::ELIGIBILITY_POINTS[Options::MAX_LEVEL_POINTS];
-    std::vector<int> points_to_keep;
-    for (int i = 0; i < visibility_count.size(); ++i) {
-      if (visibility_count[i] >= threshold) {
-        points_to_keep.push_back(i);
-      }
-    }
-    // Filter data.visible and orig_meas matrices to keep only the columns for points
-    // above the threshold
-    Eigen::MatrixXd refiltered_visible(visible.rows(), points_to_keep.size());
-    for (size_t i = 0; i < points_to_keep.size(); ++i) {
-      refiltered_visible.col(i) = visible.col(points_to_keep[i]);
+
+    Eigen::VectorXd colSums = visible.colwise().sum();
+
+    // Determine which columns have a sum less than the specified threshold
+    Eigen::Array<bool, 1, Eigen::Dynamic> rm_pts = colSums.array() < Options::ELIGIBILITY_POINTS[Options::MAX_LEVEL_POINTS];
+    Eigen::Array<bool, 1, Eigen::Dynamic> keep_pts = !rm_pts;
+
+    int numColsToKeep = keep_pts.count();
+
+    // Create a new matrix to hold the filtered columns
+    Eigen::MatrixXd filtered_visible(visible.rows(), numColsToKeep);
+    Eigen::MatrixXd filtered_meas(dense_measurements.rows(), numColsToKeep);
+
+    // Iterate over keep_pts and copy the columns to keep into the new matrix
+    int colIndex = 0;
+    for (int i = 0; i < keep_pts.size(); ++i) {
+        if (keep_pts(i)) {
+            filtered_visible.col(colIndex) = visible.col(i);
+            filtered_meas.col(colIndex) = dense_measurements.col(i);
+            colIndex++;
+        }
     }
 
     // Update data.visible with the filtered matrix
-    return refiltered_visible;
+    return {filtered_visible,filtered_meas};
   }
   //
   std::pair<Eigen::MatrixXd, Eigen::MatrixXd>

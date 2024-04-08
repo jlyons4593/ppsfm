@@ -1,30 +1,44 @@
 #include "DataWriter.hpp"
+#include <exception>
 #include <iostream>
 #include "pipelineManager.h"
 #include "Refinement.h"
 #include "dataCleaning.h"
 #include "dataStructures.hpp"
+#include "logger.h"
 
 PipelineManager::PipelineManager(DataStructures::InputMatrices input) 
 {
-    std::cout<<"Initialising Pipeline Variables"<<std::endl;
-    this->measurements = input.measurements;
-    this->image_size = input.image_size;
-    this->centers = input.centers;
-
+    Logger::logSection("Initialising Pipeline Variables");
+    measurements = input.measurements;
+    image_size = input.image_size;
+    centers = input.centers;
 }
 
 PipelineManager::~PipelineManager(){}
 
 void PipelineManager::runPipeline(){
+
+    auto start = std::chrono::high_resolution_clock::now();
     cleanData();    
+    
+
     pairsAffinity();
+    auto end = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    std::cout << " Data clean and Pair affinity completed in " << duration.count() << " milliseconds" << std::endl;
 
     Logger::logSection("Finding Initial Sub-Problem");
 
+    start = std::chrono::high_resolution_clock::now();
     std::unique_ptr<Initialisation> initialiser = std::make_unique<Initialisation>(data.normalised_measurements,data.visible, pair_affinity.view_pairs, pair_affinity.Affinity);
     initialiser->process();
+    end = std::chrono::high_resolution_clock::now();
+    duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    std::cout << "Initial points and views completed in " << duration.count() << "milliseconds" << std::endl;
     camera_variables = initialiser->getCameraPoints();
+    
+
     Eigen::MatrixXd initial_cameras= camera_variables.cameras;
     Eigen::MatrixXd initial_points= camera_variables.points;
     Eigen::VectorXi initial_pathway=camera_variables.pathway;
@@ -36,14 +50,23 @@ void PipelineManager::runPipeline(){
       }
 
   }
+    start = std::chrono::high_resolution_clock::now();
     std::unique_ptr<FactorCompletion> completion = std::make_unique<FactorCompletion>(data, camera_variables,pair_affinity, image_size, centers);
     completion->process();
+    end = std::chrono::high_resolution_clock::now();
+    duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    std::cout << "Factor completion completed in " << duration.count()/1000 << " seconds" << std::endl;
     camera_variables = completion->getCameraVariables();
     data = completion->getData();
     Eigen::Array<bool, Eigen::Dynamic, Eigen::Dynamic> inliers = completion->getInliers();
 
     if(Options::FINAL_REFINEMENT){
+        start = std::chrono::high_resolution_clock::now();
         Refinement refinement = Refinement(data, camera_variables, inliers, camera_variables.pathway, camera_variables.fixed, false, 2);
+        end = std::chrono::high_resolution_clock::now();
+        duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+        std::cout << "Final refinement completed in " << duration.count()<< " milliseconds" << std::endl;
+
         camera_variables.cameras = refinement.getCameras();
         camera_variables.points= refinement.getPoints();
     }
@@ -90,20 +113,23 @@ void PipelineManager::runPipeline(){
     model.fixed=fixed;
     model.inliers= inliers;
     
-    DataStructures::SfMData finalData;
+    DataStructures::FinalData finalData;
     finalData.cost_function_data = data.cost_function_data;
+    finalData.centers = centers;
     finalData.normalisations= data.normalisations;
     finalData.normalised_measurements = data.normalised_measurements;
-    finalData.visible = data.visible;
+    finalData.visible= data.visible.unaryExpr([](double elem) {
+        return elem != 0.0;
+    });
     finalData.image_measurements= data.image_measurements;
     finalData.pseudo_inverse_measurements= data.pseudo_inverse_measurements;
     finalData.removed_points= data.removed_points;
     std::cout<<"Data has been saved to its structures"<<std::endl;
 
-    bool save =true;
+    bool save =false;
     if(save){
-    WriteStructsToMatFile(model, data, "bluebear.mat");
-    std::cout<<"Data has been saved to its matfile"<<std::endl;
+        WriteStructsToMatFile(model, finalData, "dino.mat");
+        std::cout<<"Data has been saved to its matfile"<<std::endl;
     }
 
 

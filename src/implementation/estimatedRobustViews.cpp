@@ -89,14 +89,9 @@ EstimatedRobustViews::EstimatedRobustViews(DataStructures::SfMData& data, DataSt
                 }
             }
         }
-        // std::cout<<max_iterations<<std::endl;
         iteration_number= iteration_number+1;
     }
-    std::cout<<"best_score:"<<std::endl;
-    std::cout<<best_score<<std::endl;
     if(best_score == std::numeric_limits<double>::infinity() ){
-        // std::cout<<"known points"<<std::endl;
-        // std::cout<<known_points<<std::endl;
 
         throw std::exception();
     }

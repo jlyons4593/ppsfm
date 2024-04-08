@@ -24,26 +24,27 @@ EstimatedViews::EstimatedViews(DataStructures::SfMData data,Eigen::MatrixXd poin
     
 
 
-    auto start = std::chrono::high_resolution_clock::now();
-
-
+    // auto start = std::chrono::high_resolution_clock::now();
+    Eigen::Matrix<double, 1, 3> selected_pinv_meas;
+    Eigen::Vector3i point_idx(3);
+    Eigen::Matrix<double, 2, 3> selected_data;
     for (int i = 0; i < num_points; ++i) {
-        Eigen::Vector3i point_idx(3*index_points(i), 3*index_points(i)+1, 3*index_points(i)+2);
+        point_idx(0) = 3*index_points(i);
+        point_idx(1) = 3*index_points(i)+1;
+        point_idx(2) = 3*index_points(i)+2;
         g.block<1, 4>(0, 0) = points.col(index_points[i]);
         g.block<1, 4>(1, 4) = points.col(index_points[i]);
         g.block<1, 4>(2, 8) = points.col(index_points[i]);
-        // std::cout<<g<<std::endl;
     
         // look for a way to speed this up
-        Eigen::Matrix<double, 2, 3> selected_data;
-        for (int k =0; k<new_view_idx.size(); k++){
-            for (int j =0; j<point_idx.size(); j++){
-                selected_data(k,j) = data.cost_function_data(new_view_idx(k), point_idx(j));
-            }
-        }
+        selected_data(0,0) = data.cost_function_data(new_view_idx(0), point_idx(0));
+        selected_data(1,0) = data.cost_function_data(new_view_idx(1), point_idx(0));
+        selected_data(0,1) = data.cost_function_data(new_view_idx(0), point_idx(1));
+        selected_data(1,1) = data.cost_function_data(new_view_idx(1), point_idx(1));
+        selected_data(0,2) = data.cost_function_data(new_view_idx(0), point_idx(2));
+        selected_data(1,2) = data.cost_function_data(new_view_idx(1), point_idx(2));
         sys.block<2, 12>(2 * i, 0) = selected_data* g;
 
-        Eigen::Matrix<double, 1, 3> selected_pinv_meas;
         selected_pinv_meas.block(0,0,1,3) = data.pseudo_inverse_measurements.block(new_view, point_idx(0), 1,3);
         pos.row(i) = selected_pinv_meas * g;
         if (i < num_fixed) {
@@ -80,10 +81,17 @@ EstimatedViews::EstimatedViews(DataStructures::SfMData data,Eigen::MatrixXd poin
     // DataStructures::printColsRows(Q, "Q");
 
     // Faster version using householderQ
+    auto start = std::chrono::high_resolution_clock::now();
     Eigen::ColPivHouseholderQR<Eigen::MatrixXd> qr(A);
     Eigen::MatrixXd QR = qr.matrixQR();
     Eigen::MatrixXd R = qr.matrixR().topLeftCorner(A.cols(), A.cols()).triangularView<Eigen::Upper>();
     Eigen::VectorXi p = qr.colsPermutation().indices();
+    auto end = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    if(duration.count()>1){
+        std::cout << "Execution time: " << duration.count() << " milliseconds" << std::endl;
+    
+    }
     // Eigen::MatrixXd Q = Q_full.leftCols(A.cols());
     // DataStructures::printColsRows(Q, "Q");
     Eigen::MatrixXd thinQ(Eigen::MatrixXd::Identity(A.rows(),A.cols()));
@@ -104,7 +112,7 @@ EstimatedViews::EstimatedViews(DataStructures::SfMData data,Eigen::MatrixXd poin
     else{
         Eigen::MatrixXd d = thinQ.transpose()*b;
         // Eigen::MatrixXd d = Q.transpose()*b;
-    auto end = std::chrono::high_resolution_clock::now();
+    // auto end = std::chrono::high_resolution_clock::now();
     // bool timer = true;
     // if (timer) {
     //     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);

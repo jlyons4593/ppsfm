@@ -8,7 +8,7 @@ inline Eigen::MatrixXi eligibility_view;
 const std::vector<int> ELIGIBILITY_POINTS = {10, 9, 8, 7, 6, 5, 4, 3, 2};
 const int MAX_LEVEL_POINTS = 7;
 const int SCORE_LEVEL = 6;
-const int MIN_COMMON_INIT = 200;
+const int MIN_COMMON_INIT = 200; //100 for the small dino
 const int MAX_MODELS = 1;
 
 const bool FINAL_REFINEMENT = true;
@@ -23,6 +23,7 @@ const double SYSTEM_THRESHOLD = 1e-1;
 const double OUTLIER_THRESHOLD = 2*1.96;
 const int GLOBAL_REFINE =5;
 const int MAX_ITERATION_REFINEMENT=50;
+const int MIN_ITERATION_REFINEMENT=2;
 const double MIN_CHANGE_LOCAL_REFINEMENT = 5e-4;
 const int MAX_ITER_FINAL_REFINE = 100;
 const double MIN_CHANGE_FINAL_REFINE = 1e-4;

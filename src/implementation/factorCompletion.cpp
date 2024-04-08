@@ -7,10 +7,7 @@
 #include "estimatedViews.h"
 #include "logger.h"
 #include "options.h"
-#include "pipelineManager.h"
 #include "pyramidalVisibilityScore.h"
-#include <exception>
-#include <iostream>
 #include <numeric>
 #include <vector>
 
@@ -48,7 +45,6 @@ void FactorCompletion::process() {
       std::max(Options::INIT_LEVEL_POINTS, Options::MAX_LEVEL_POINTS);
 
   int number_of_known_views = camera_variables.negative_pathway.size();
-  // std::cout<<camera_variables.negative_pathway<<std::endl;
   int number_of_known_points = camera_variables.positive_pathway.size();
   int number_of_added_points = number_of_known_points;
   int number_of_added_views = number_of_known_views;
@@ -56,8 +52,7 @@ void FactorCompletion::process() {
   int num_iter = 0;
   int iter_refine = 0;
 
-  Diagnosis *diag = new Diagnosis(inliers, data, camera_variables, num_iter);
-  delete (diag);
+  Diagnosis diag = Diagnosis(inliers, data, camera_variables, num_iter);
   Logger::logSubsection("Adding Points And Views");
 
   int refinement_count = 0;
@@ -72,25 +67,19 @@ void FactorCompletion::process() {
     number_of_added_views = 0;
     number_of_added_points = 0;
 
+    std::cout<<"Iteration: "<<actual_iter<<std::endl;
     if (number_of_known_views < num_views) {
-      std::cout << "If statement 1 " << std::endl;
       Eigen::MatrixXi eligibility_view = Options::get_eligibility_view();
       Eigen::VectorXi threshold = eligibility_view.col(level_views);
       std::pair<Eigen::RowVectorXd, std::vector<int>> eligible_scores =
           search_eligible_views(threshold, rejected_views, actual_iter);
       Eigen::RowVectorXd scores = eligible_scores.first;
       std::vector<int> eligible_views = eligible_scores.second;
-      std::cout << "eligibles" << std::endl;
-      for (auto i : eligible_views) {
-        std::cout << i << std::endl;
-      }
 
       if (eligible_views.size() != 0) {
-        std::cout << "If statement 2" << std::endl;
         number_of_added_views = try_adding_views(eligible_views, level_views);
 
         if (number_of_added_views > 0) {
-          std::cout << "If statement 3" << std::endl;
           number_of_known_views = number_of_known_views + number_of_added_views;
           level_points = std::max(0, level_points - 1);
           std::vector<std::vector<int>> fixed;
@@ -109,7 +98,6 @@ void FactorCompletion::process() {
           delete diag;
 
           if (last_dir_change == 2) {
-            std::cout << "If statement 4" << std::endl;
             prev_last_path[0] = last_path - number_of_added_views;
             last_dir_change = 1;
             num_iter++;
@@ -117,32 +105,23 @@ void FactorCompletion::process() {
         }
       }
       if (!number_of_added_views && level_views < Options::MAX_LEVEL_VIEWS) {
-        std::cout << "If statement 5" << std::endl;
         level_views++;
         level_changed = true;
       }
     }
-    std::cout<<"searching points"<<std::endl;
-    std::cout<<"level_points"<<std::endl;
-    std::cout<<level_points<<std::endl;
     Eigen::VectorXi eligible_points =
         search_eligible_points(Options::ELIGIBILITY_POINTS[level_points],
                                rejected_points, actual_iter);
-    std::cout<<"done searching points"<<std::endl;
 
     if (eligible_points.size() != 0) {
-      std::cout << "If statement 6" << std::endl;
       std::pair<int, Eigen::VectorXi> added_vars =
-          try_adding_points(eligible_points, level_views);
+          try_adding_points(eligible_points, level_points);
       number_of_added_points = added_vars.first;
       Eigen::VectorXi added = added_vars.second;
 
       if (number_of_added_points > 0) {
-        std::cout << "If statement 7" << std::endl;
-
         number_of_known_points =
             number_of_known_points + number_of_added_points;
-
 
         Eigen::VectorXi eligible_update(number_of_added_points);
         int updateCount =0;
@@ -154,7 +133,6 @@ void FactorCompletion::process() {
 
         }
         // Select elements from vector a using the non-zero indices
-
         update_pvs(eligible_update);
         level_views = std::max(0, level_views - 1);
         std::vector<std::vector<int>> fixed;
@@ -169,10 +147,8 @@ void FactorCompletion::process() {
         delete (refinement);
         Diagnosis *diag =
             new Diagnosis(inliers, data, camera_variables, num_iter);
-        std::cout<<"after diagnosis"<<std::endl;
         delete diag;
         if (last_dir_change == 1) {
-          std::cout << "If statement 8" << std::endl;
           prev_last_path[1] = last_path - number_of_added_points;
           last_dir_change = 2;
           num_iter++;
@@ -181,37 +157,28 @@ void FactorCompletion::process() {
     }
     if (!number_of_added_points &&
         level_points < Options::MAX_LEVEL_POINTS - Options::DIFFER_LAST_LEVEL) {
-      std::cout << "If statement 9" << std::endl;
       level_points++;
       level_changed = true;
     }
     if (new_init_refine != std::min(prev_last_path[0], prev_last_path[1])) {
-      std::cout << "If statement 10 " << std::endl;
       init_refine = new_init_refine;
       new_init_refine = std::min(prev_last_path[0], prev_last_path[1]);
     }
     if ((num_iter - iter_refine) > Options::GLOBAL_REFINE) {
-      std::cout << "If statement 11" << std::endl;
-      // std::cout << " THIS SHOULD ONLY BE IN ITERATION 18 AND 23" << std::endl;
+        std::cout<<"global refien"<<std::endl;
       std::vector<std::vector<int>> fixed;
       fixed.assign(std::next(camera_variables.fixed.begin(), 0),
                    std::next(camera_variables.fixed.begin(), last_path + 1));
       Eigen::VectorXi pathway =
           camera_variables.pathway.segment(0, last_path + 1);
-      if (actual_iter == 23 || actual_iter == 18) {
-        std::cout << num_iter << std::endl;
-        std::cout << iter_refine << std::endl;
-      }
       Refinement *refinement = new Refinement(data, camera_variables, inliers,
                                               pathway, fixed, false, 1);
       camera_variables.cameras = refinement->getCameras();
       camera_variables.points = refinement->getPoints();
       iter_refine = num_iter;
     }
-    std::cout << "Pathway iter: " << actual_iter << std::endl;
     actual_iter++;
 
-    std::cout << "actual iteration number: " << actual_iter << std::endl;
   } // End of loop
   camera_variables.pathway = camera_variables.pathway.segment(0, last_path + 1);
   std::vector<std::vector<int>> sectionVector;
@@ -263,26 +230,46 @@ std::pair<int, Eigen::VectorXi>
 FactorCompletion::try_adding_points(Eigen::VectorXi eligibles,
                                     int level_views) {
   Eigen::VectorXi added = Eigen::VectorXi::Zero(eligibles.size());
-  auto &known_views = camera_variables.negative_pathway;
+
+  std::vector<int> positiveValues;
+  std::copy_if(
+      camera_variables.pathway.data(),
+      camera_variables.pathway.data() + camera_variables.pathway.size(),
+      std::back_inserter(positiveValues), [](int value) { return value > 0; });
+  Eigen::Map<Eigen::VectorXi> known_points(positiveValues.data(),
+                                           positiveValues.size());
+  std::vector<int> negativeValues;
+  std::copy_if(
+      camera_variables.pathway.data(),
+      camera_variables.pathway.data() + camera_variables.pathway.size(),
+      std::back_inserter(negativeValues), [](int value) { return value < 0; });
+  Eigen::Map<Eigen::VectorXi> known_views(negativeValues.data(),
+                                          negativeValues.size());
+  known_points = known_points.array() - 1;
+  known_views = -(known_views.array()) - 1;
 
   int count = 0;
   for (int idx = 0; idx < eligibles.size(); ++idx) {
-    std::vector<int> visible_views;
-    for (int i = 0; i < known_views.size(); i++) {
-      if (data.visible(i, eligibles[idx])) {
-        visible_views.push_back(i);
+      std::vector<int> visible_views_indices;
+      for (int i = 0; i < known_views.size(); ++i) {
+          if (data.visible(known_views(i), eligibles[idx])) { // If view i is visible in the point
+              visible_views_indices.push_back(known_views(i)); // Add to list of visible views
+          }
       }
-    }
-    Eigen::VectorXi visible_views_eig(visible_views.size());
-    for (int i = 0; i < visible_views.size(); i++) {
-      visible_views_eig(i) = visible_views[i];
-    }
+
+      // Optional: Convert visible_views_indices to Eigen::VectorXi if needed
+      Eigen::VectorXi visible_views_eig(visible_views_indices.size());
+      for (size_t i = 0; i < visible_views_indices.size(); ++i) {
+          visible_views_eig(i) = visible_views_indices[i];
+      }
     Eigen::VectorXi inlier_views;
     Eigen::VectorXd best_estimate;
     if (Options::ROBUST_ESTIMATION) {
       EstimatedRobustPoints *estim_views = new EstimatedRobustPoints(
           data, camera_variables, visible_views_eig, eligibles[idx],
           rejected_points(eligibles[idx]), level_views);
+    
+      
       best_estimate.resize(estim_views->best_estimate.size());
       inlier_views.resize(estim_views->best_inliers.size());
       best_estimate = estim_views->best_estimate;
@@ -293,7 +280,7 @@ FactorCompletion::try_adding_points(Eigen::VectorXi eligibles,
           new EstimatedPoints(data, camera_variables.cameras, visible_views_eig,
                               eligibles[idx], visible_views_eig.size());
       best_estimate.resize(estim_views->estim.size());
-      inlier_views.resize(visible_views.size());
+      inlier_views.resize(visible_views_eig.size());
       best_estimate = estim_views->estim;
       inlier_views = visible_views_eig;
       delete (estim_views);
@@ -323,28 +310,47 @@ FactorCompletion::try_adding_points(Eigen::VectorXi eligibles,
 int FactorCompletion::try_adding_views(std::vector<int> eligibles,
                                        int level_views) {
   int nums_added = 0;
-  auto &known_points = camera_variables.positive_pathway;
+
+  std::vector<int> positiveValues;
+  std::copy_if(
+      camera_variables.pathway.data(),
+      camera_variables.pathway.data() + camera_variables.pathway.size(),
+      std::back_inserter(positiveValues), [](int value) { return value > 0; });
+  Eigen::Map<Eigen::VectorXi> known_points(positiveValues.data(),
+                                           positiveValues.size());
+  std::vector<int> negativeValues;
+  std::copy_if(
+      camera_variables.pathway.data(),
+      camera_variables.pathway.data() + camera_variables.pathway.size(),
+      std::back_inserter(negativeValues), [](int value) { return value < 0; });
+  Eigen::Map<Eigen::VectorXi> known_views(negativeValues.data(),
+                                          negativeValues.size());
+  known_points = known_points.array() - 1;
+  known_views = -(known_views.array()) - 1;
+
   int count = 0;
   for (int idx = 0; idx < eligibles.size(); ++idx) {
-
     std::vector<int> visible_pts;
-
-    for (int i = 0; i < known_points.size(); i++) {
-      if (data.visible(eligibles[idx], i)) {
-        visible_pts.push_back(i);
-      }
+    std::vector<int> visible_points_indices;
+    for (int i = 0; i < known_points.size(); ++i) {
+        if (data.visible(eligibles[idx], known_points(i))) { // If point i is visible in the view
+            visible_points_indices.push_back(known_points(i)); // Add to list of visible points
+        }
     }
-    Eigen::VectorXi visible_pts_eig(visible_pts.size());
-    for (int i = 0; i < visible_pts.size(); i++) {
-      visible_pts_eig(i) = visible_pts[i];
+
+    Eigen::VectorXi visible_pts_eig(visible_points_indices.size());
+    for (size_t i = 0; i < visible_points_indices.size(); ++i) {
+        visible_pts_eig(i) = visible_points_indices[i];
     }
 
     Eigen::VectorXi inlier_points;
     Eigen::VectorXd best_estimate;
     if (Options::ROBUST_ESTIMATION) {
+
       EstimatedRobustViews estim_views = EstimatedRobustViews(
           data, camera_variables, visible_pts_eig, eligibles[idx],
           rejected_views(eligibles[idx]), level_views);
+      // std::cout<<"checkerion"<<std::endl;
       best_estimate.resize(estim_views.best_estimate.size());
       inlier_points.resize(estim_views.best_inliers.size());
       best_estimate = estim_views.best_estimate;
@@ -388,7 +394,6 @@ Eigen::VectorXi
 FactorCompletion::search_eligible_points(int required_visible_eligibility,
                                          Eigen::VectorXi rejected_points,
                                          int iter) {
-
   int num_points = data.visible.cols();
 
   std::vector<int> positiveValues;
@@ -407,7 +412,7 @@ FactorCompletion::search_eligible_points(int required_visible_eligibility,
                                           negativeValues.size());
   known_points = known_points.array() - 1;
   known_views = -(known_views.array()) - 1;
-
+  //
   Eigen::VectorXi unknown_points = Eigen::VectorXi::Ones(num_points);
   for (int point : known_points) {
     unknown_points[point] = false;
@@ -430,7 +435,6 @@ FactorCompletion::search_eligible_points(int required_visible_eligibility,
       num_visible_views[i] = false;
     }
   }
-
   Eigen::VectorXi rejected_unknown = rejected_points(unknown_points);
   Eigen::VectorXd::Scalar req_vis_elig_scalar =
       static_cast<Eigen::VectorXd::Scalar>(required_visible_eligibility);
@@ -453,6 +457,7 @@ FactorCompletion::search_eligible_points(int required_visible_eligibility,
       unknown_points(i) = eligible_unknown[i];
     }
   }
+
   Eigen::VectorXi eligible_points((unknown_points.array() > 0).count());
   int count = 0;
   for (int i = 0; i < unknown_points.size(); i++) {
@@ -461,12 +466,14 @@ FactorCompletion::search_eligible_points(int required_visible_eligibility,
       count++;
     }
   }
+
   return eligible_points;
 }
 std::pair<Eigen::RowVectorXd, std::vector<int>>
 FactorCompletion::search_eligible_views(Eigen::VectorXi thresholds,
                                         Eigen::VectorXi rejected_views,
                                         int iter) {
+
   int number_of_views = data.visible.rows();
   Eigen::Array<bool, Eigen::Dynamic, 1> unknown_views =
       Eigen::Array<bool, Eigen::Dynamic, 1>::Constant(number_of_views, 1, true);
@@ -496,6 +503,7 @@ FactorCompletion::search_eligible_views(Eigen::VectorXi thresholds,
   Eigen::RowVectorXd scores = Eigen::RowVectorXd::Zero(number_of_views);
   Eigen::RowVectorXd num_visible_points =
       Eigen::RowVectorXd::Zero(number_of_views);
+
   num_visible_points.resize(data.visible.rows());
 
   for (int i = 0; i < data.visible.rows(); ++i) {
@@ -514,10 +522,11 @@ FactorCompletion::search_eligible_views(Eigen::VectorXi thresholds,
   for (int i = 0; i < num_visible_points.size(); ++i) {
     if (unknown_views[i]) {
       bool condition1 = num_visible_points[i] > rejected_views[i];
-      bool condition2 = num_visible_points[i] >= thresholds[0];
+      bool condition2 = num_visible_points[i] > thresholds[0];
       eligible_unknown.push_back(condition1 && condition2);
     }
   }
+
   int eligible_count = 0;
   for (int i = 0; i < unknown_views.size(); ++i) {
     if (unknown_views[i]) {
@@ -544,6 +553,7 @@ FactorCompletion::search_eligible_views(Eigen::VectorXi thresholds,
       }
     }
   }
+
   return {scores, eligibles};
 }
 

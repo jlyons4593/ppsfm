@@ -23,7 +23,6 @@ private:
   // EigenMatrixx for storing the image sizes
   Eigen::MatrixXd image_size;
 
-  Eigen::MatrixXd centers;
   DataStructures::SfMData data;
   DataStructures::ComputedCameraPoints camera_variables;
   DataStructures::ViewpairAffinity pair_affinity;
@@ -37,6 +36,7 @@ private:
   void pairsAffinity();
 
 public:
+  Eigen::MatrixXd centers;
   // Constructor for PipelineManager
   PipelineManager(DataStructures::InputMatrices input);
 
