@@ -25,13 +25,18 @@ EstimatedViews::EstimatedViews(DataStructures::SfMData data,Eigen::MatrixXd poin
 
 
     // auto start = std::chrono::high_resolution_clock::now();
-    Eigen::Matrix<double, 1, 3> selected_pinv_meas;
-    Eigen::Vector3i point_idx(3);
-    Eigen::Matrix<double, 2, 3> selected_data;
+
+    // #pragma omp parallel for
     for (int i = 0; i < num_points; ++i) {
-        point_idx(0) = 3*index_points(i);
-        point_idx(1) = 3*index_points(i)+1;
-        point_idx(2) = 3*index_points(i)+2;
+        Eigen::Matrix<double, 1, 3> selected_pinv_meas;
+
+        Eigen::Vector3i point_idx(3*index_points(i), 3*index_points(i)+1, 3*index_points(i)+2);
+        // Eigen::Vector3i point_idx(3);
+        Eigen::Matrix<double, 2, 3> selected_data;
+        // point_idx(0) = 3*index_points(i);
+        // point_idx(1) = 3*index_points(i)+1;
+        // point_idx(2) = 3*index_points(i)+2;
+
         g.block<1, 4>(0, 0) = points.col(index_points[i]);
         g.block<1, 4>(1, 4) = points.col(index_points[i]);
         g.block<1, 4>(2, 8) = points.col(index_points[i]);
@@ -81,27 +86,28 @@ EstimatedViews::EstimatedViews(DataStructures::SfMData data,Eigen::MatrixXd poin
     // DataStructures::printColsRows(Q, "Q");
 
     // Faster version using householderQ
-    auto start = std::chrono::high_resolution_clock::now();
+    // auto start = std::chrono::high_resolution_clock::now();
     Eigen::ColPivHouseholderQR<Eigen::MatrixXd> qr(A);
-    Eigen::MatrixXd QR = qr.matrixQR();
-    Eigen::MatrixXd R = qr.matrixR().topLeftCorner(A.cols(), A.cols()).triangularView<Eigen::Upper>();
+    // Eigen::MatrixXd QR = qr.matrixQR();
+    // Eigen::MatrixXd R = qr.matrixR().topLeftCorner(A.cols(), A.cols()).triangularView<Eigen::Upper>();
     Eigen::VectorXi p = qr.colsPermutation().indices();
-    auto end = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-    if(duration.count()>1){
-        std::cout << "Execution time: " << duration.count() << " milliseconds" << std::endl;
-    
-    }
+    // auto end = std::chrono::high_resolution_clock::now();
+    // auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    // if(duration.count()>1){
+    //     std::cout << "Execution time: " << duration.count() << " milliseconds" << std::endl;
+    // 
+    // }
     // Eigen::MatrixXd Q = Q_full.leftCols(A.cols());
     // DataStructures::printColsRows(Q, "Q");
-    Eigen::MatrixXd thinQ(Eigen::MatrixXd::Identity(A.rows(),A.cols()));
-    thinQ = qr.householderQ()*thinQ;
+    // Eigen::MatrixXd thinQ(Eigen::MatrixXd::Identity(A.rows(),A.cols()));
+    // thinQ = qr.householderQ()*thinQ;
         // Eigen::MatrixXd d = thinQ.transpose()*b;
 
 
     bool hasSmallDiagonalElement = false;
-    for (int i = 0; i < R.diagonal().size(); ++i) {
-        if (std::abs(R.diagonal()(i)) < 1e-6) {
+    // for (int i = 0; i < R.diagonal().size(); ++i) {
+    for (int i = 0; i < qr.matrixR().topLeftCorner(A.cols(), A.cols()).diagonal().size(); ++i) {
+        if (std::abs(qr.matrixR().topLeftCorner(A.cols(), A.cols()).diagonal()(i)) < 1e-6) {
             hasSmallDiagonalElement = true;
             break;
         }
@@ -110,7 +116,8 @@ EstimatedViews::EstimatedViews(DataStructures::SfMData data,Eigen::MatrixXd poin
         Eigen::VectorXd estimation; 
     }
     else{
-        Eigen::MatrixXd d = thinQ.transpose()*b;
+        // Eigen::MatrixXd d = thinQ.transpose()*b;
+        Eigen::MatrixXd d = (qr.householderQ()*Eigen::MatrixXd::Identity(A.rows(),A.cols())).transpose()*b;
         // Eigen::MatrixXd d = Q.transpose()*b;
     // auto end = std::chrono::high_resolution_clock::now();
     // bool timer = true;
@@ -118,7 +125,7 @@ EstimatedViews::EstimatedViews(DataStructures::SfMData data,Eigen::MatrixXd poin
     //     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     //     std::cout << "Loop execution in " << duration.count() << " milliseconds" << std::endl;
     // }
-        Eigen::MatrixXd x = R.triangularView<Eigen::Upper>().solve(d);
+        Eigen::MatrixXd x = qr.matrixR().topLeftCorner(A.cols(), A.cols()).triangularView<Eigen::Upper>().solve(d);
         // std::cout<<p<<std::endl;
         // std::cout<<x<<std::endl;
         Eigen::VectorXi pp = Eigen::VectorXi::LinSpaced(11, 0, 11);

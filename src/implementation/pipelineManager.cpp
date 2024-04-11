@@ -9,7 +9,7 @@
 
 PipelineManager::PipelineManager(DataStructures::InputMatrices input) 
 {
-    Logger::logSection("Initialising Pipeline Variables");
+    // Logger::logSection("Initialising Pipeline Variables");
     measurements = input.measurements;
     image_size = input.image_size;
     centers = input.centers;
@@ -20,15 +20,22 @@ PipelineManager::~PipelineManager(){}
 void PipelineManager::runPipeline(){
 
     auto start = std::chrono::high_resolution_clock::now();
-    cleanData();    
-    
+    // cleanData();    
 
-    pairsAffinity();
+    DataCleaningStage dataCleaner = DataCleaningStage(); 
+    dataCleaner.process(measurements);
+    data = dataCleaner.getData();
+
+    PairAffinityCalculator pairHandler= PairAffinityCalculator(); 
+    pairHandler.process(data.image_measurements, data.visible, image_size);
+    pair_affinity = pairHandler.getPairAffinity();
+    // pairsAffinity();
+
     auto end = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     std::cout << " Data clean and Pair affinity completed in " << duration.count() << " milliseconds" << std::endl;
 
-    Logger::logSection("Finding Initial Sub-Problem");
+    // Logger::logSection("Finding Initial Sub-Problem");
 
     start = std::chrono::high_resolution_clock::now();
     std::unique_ptr<Initialisation> initialiser = std::make_unique<Initialisation>(data.normalised_measurements,data.visible, pair_affinity.view_pairs, pair_affinity.Affinity);
@@ -55,7 +62,7 @@ void PipelineManager::runPipeline(){
     completion->process();
     end = std::chrono::high_resolution_clock::now();
     duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-    std::cout << "Factor completion completed in " << duration.count()/1000 << " seconds" << std::endl;
+    std::cout << "Factor completion completed in " << duration.count()<< " milliseconds" << std::endl;
     camera_variables = completion->getCameraVariables();
     data = completion->getData();
     Eigen::Array<bool, Eigen::Dynamic, Eigen::Dynamic> inliers = completion->getInliers();
@@ -126,9 +133,10 @@ void PipelineManager::runPipeline(){
     finalData.removed_points= data.removed_points;
     std::cout<<"Data has been saved to its structures"<<std::endl;
 
-    bool save =false;
+    bool save =true;
     if(save){
         WriteStructsToMatFile(model, finalData, "dino.mat");
+        // WriteStructsToMatFile(model, finalData, "cherub.mat");
         std::cout<<"Data has been saved to its matfile"<<std::endl;
     }
 
@@ -138,9 +146,9 @@ void PipelineManager::runPipeline(){
 
 
 void PipelineManager::cleanData(){
-    std::unique_ptr<DataCleaningStage> dataCleaner(new DataCleaningStage); 
-    dataCleaner->process(measurements);
-    this->data = dataCleaner->getData();
+    DataCleaningStage dataCleaner = DataCleaningStage(); 
+    dataCleaner.process(measurements);
+    data = dataCleaner.getData();
 }
 void PipelineManager::pairsAffinity(){
     std::unique_ptr<PairAffinityCalculator> pairHandler(new PairAffinityCalculator); 

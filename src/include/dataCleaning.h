@@ -46,7 +46,7 @@ public:
    void handleVisibility(){
 
 
-    Logger::logSubsection("Creating visibility matrix");
+    // Logger::logSubsection("Creating visibility matrix");
     std::pair<Eigen::MatrixXd, Eigen::MatrixXd> visible_pair= filterVisibleMatrix(dense_measurements);
 
     data.visible = visible_pair.first; 
@@ -111,10 +111,10 @@ Eigen::MatrixXd cpm(const Eigen::MatrixXd& v) {
   }
   // THIS FUNCTION NOW LOOKS CORRECT
   void process(Eigen::SparseMatrix<double>& measurements) {
-    Logger::logSection("Prepare Data");
+    // Logger::logSection("Prepare Data");
     dense_measurements = Eigen::MatrixXd(measurements);
 
-    Logger::logSubsection("Creating visibility matrix");
+    // Logger::logSubsection("Creating visibility matrix");
 
     handleVisibility();
     // ALL VARS CORRECT
@@ -125,6 +125,7 @@ Eigen::MatrixXd cpm(const Eigen::MatrixXd& v) {
         Eigen::MatrixXd::Zero(3 * number_of_views, number_of_points);
     data.normalisations = Eigen::MatrixXd::Constant(
         3 * number_of_views, 3, std::numeric_limits<double>::quiet_NaN());
+// #pragma omp parallel for
     for (int j = 0; j < number_of_views; ++j) {
       Eigen::RowVectorXd visible_points = data.visible.row(j);
 
@@ -179,6 +180,7 @@ Eigen::MatrixXd cpm(const Eigen::MatrixXd& v) {
     }
   
     Eigen::MatrixXd meas(1,3);
+// #pragma omp parallel for
     for (size_t k = 0; k < number_of_visible; ++k) { 
       int startRow = 3 * view_idx[k]; 
 

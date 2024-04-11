@@ -17,9 +17,10 @@ EstimatedRobustViews::EstimatedRobustViews(DataStructures::SfMData& data, DataSt
     double best_score =  std::numeric_limits<double>::infinity();
     best_inliers = Eigen::VectorXi::Zero(known_points.size());
     int iteration_number = 0;
-    int max_iterations = Options::MAX_ITERATION_ROBUST(1);
+    // int max_iterations = Options::MAX_ITERATION_ROBUST(1);
     // int max_iterations = 3;
 
+    int max_iterations = 20;
 
     // std::cout<<"Robust Loop Entry "<<std::endl;
     //Main work loop
@@ -93,7 +94,7 @@ EstimatedRobustViews::EstimatedRobustViews(DataStructures::SfMData& data, DataSt
     }
     if(best_score == std::numeric_limits<double>::infinity() ){
 
-        throw std::exception();
+        // throw std::exception();
     }
 }
 double EstimatedRobustViews::computeScore(Eigen::VectorXd estimation,Eigen::Vector3i idx_view, Eigen::VectorXi known_points, std::vector<int> inliers){

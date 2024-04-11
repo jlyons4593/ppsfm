@@ -6,7 +6,7 @@
   void PairAffinityCalculator::process(Eigen::MatrixXd image_measurements, Eigen::MatrixXd visible,
                Eigen::MatrixXd image_sizes) {
 
-    Logger::logSection("Pair Affinity");
+    // Logger::logSection("Pair Affinity");
 
     int num_views = visible.rows();
     // std::cout<<image_sizes<<std::endl;
@@ -20,9 +20,10 @@
 
     int offset = 0;
 
-    Logger::logSubsection("Processing Views Using Pyramidal Visibility Score");
+    // Logger::logSubsection("Processing Views Using Pyramidal Visibility Score");
 
     for (int first_view = 0; first_view<num_views -1; ++first_view) {
+// #pragma omp parallel for
       for (int second_view = first_view + 1; second_view < num_views;
       ++second_view) {
 
@@ -70,7 +71,7 @@
       }
     }
 
-    Logger::logSubsection("Sorting View Pairs and Affinity");
+    // Logger::logSubsection("Sorting View Pairs and Affinity");
 
 
     view_pairs = view_pairs.block(0, 0, offset, view_pairs.cols());
@@ -101,7 +102,7 @@
     view_pairs = temp_view_pairs;
     this->pairAffinity.view_pairs = view_pairs;
     this->pairAffinity.Affinity= sortedAffinity;
-    Logger::logSubsection("View Pairs and Affinity Stored as Member");
+    // Logger::logSubsection("View Pairs and Affinity Stored as Member");
 
   } 
 

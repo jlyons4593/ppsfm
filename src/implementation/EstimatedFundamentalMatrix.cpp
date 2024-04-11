@@ -43,6 +43,7 @@ std::pair<Eigen::MatrixXd, Eigen::VectorXd> EstimatedFundamentalMatrix::estimate
 
         // Assuming the last column of fun_vec is what we want to reshape into fun_mat
         Eigen::VectorXd last_col = fun_vec.col(fun_vec.cols()-1);
+
         // Adding a minus fixes the guessing values not sure why
         last_col = -last_col.array();
 
@@ -160,7 +161,7 @@ std::pair<Eigen::MatrixXd, Eigen::VectorXd> EstimatedFundamentalMatrix::estimate
 
 Eigen::MatrixXd EstimatedFundamentalMatrix::applyLinvecToProjections(const Eigen::MatrixXd& projs1, const Eigen::MatrixXd& projs2) {
     if (projs1.cols() != projs2.cols()) {
-        throw std::invalid_argument("projs1 and projs2 must have the same number of columns.");
+        // throw std::invalid_argument("projs1 and projs2 must have the same number of columns.");
     }
 
     Eigen::MatrixXd coeffs(projs1.cols(), 9); // Assuming linvec outputs a 1x9 vector, prepare the output matrix

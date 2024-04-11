@@ -6,13 +6,12 @@
 
 void Initialisation::process() {
 
-  Logger::logSection("Starting PPSFM Initialisation");
+  // Logger::logSection("Starting PPSFM Initialisation");
 
-  Logger::logSubsection("Creating Matrices for Computation");
+  // Logger::logSubsection("Creating Matrices for Computation");
 
   Eigen::MatrixXi estimated_pairs =
       Eigen::MatrixXi::Zero(view_pairs.rows(), view_pairs.cols());
-  // std::cout<<view_pairs<<std::endl;
 
   Eigen::MatrixXi not_estimated_pairs =
       (estimated_pairs.array() == 0).cast<int>();
@@ -63,7 +62,7 @@ void Initialisation::process() {
 
   // MAIN WORK LOOP
 
-  Logger::logSubsection("Main PPSFM Initialisation Loop");
+  // Logger::logSubsection("Main PPSFM Initialisation Loop");
 
   for (int i = 0; i < sorted_idx.size(); i++) {
     int first_view =
@@ -146,7 +145,7 @@ void Initialisation::process() {
       break;
     }
   }
-  Logger::logSection("End of Camera Var Computation");
+  // Logger::logSection("End of Camera Var Computation");
 }
 
 DataStructures::ComputedCameraPoints
